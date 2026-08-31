@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as PlayRouteImport } from './routes/play'
+import { Route as ChallengeCodeRouteImport } from './routes/challenge.$code'
+import { Route as PIdRouteImport } from './routes/p.$id'
+import { Route as ApiPublicWebhooksDodoRouteImport } from './routes/api/public/webhooks/dodo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayRoute = PlayRouteImport.update({
+  id: '/play',
+  path: '/play',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengeCodeRoute = ChallengeCodeRouteImport.update({
+  id: '/challenge/$code',
+  path: '/challenge/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PIdRoute = PIdRouteImport.update({
+  id: '/p/$id',
+  path: '/p/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWebhooksDodoRoute = ApiPublicWebhooksDodoRouteImport.update({
+  id: '/api/public/webhooks/dodo',
+  path: '/api/public/webhooks/dodo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/play': typeof PlayRoute
+  '/challenge/$code': typeof ChallengeCodeRoute
+  '/p/$id': typeof PIdRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/play': typeof PlayRoute
+  '/challenge/$code': typeof ChallengeCodeRoute
+  '/p/$id': typeof PIdRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/play': typeof PlayRoute
+  '/challenge/$code': typeof ChallengeCodeRoute
+  '/p/$id': typeof PIdRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/leaderboard'
+    | '/play'
+    | '/challenge/$code'
+    | '/p/$id'
+    | '/api/public/webhooks/dodo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/leaderboard'
+    | '/play'
+    | '/challenge/$code'
+    | '/p/$id'
+    | '/api/public/webhooks/dodo'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/leaderboard'
+    | '/play'
+    | '/challenge/$code'
+    | '/p/$id'
+    | '/api/public/webhooks/dodo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  LeaderboardRoute: typeof LeaderboardRoute
+  PlayRoute: typeof PlayRoute
+  ChallengeCodeRoute: typeof ChallengeCodeRoute
+  PIdRoute: typeof PIdRoute
+  ApiPublicWebhooksDodoRoute: typeof ApiPublicWebhooksDodoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play': {
+      id: '/play'
+      path: '/play'
+      fullPath: '/play'
+      preLoaderRoute: typeof PlayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenge/$code': {
+      id: '/challenge/$code'
+      path: '/challenge/$code'
+      fullPath: '/challenge/$code'
+      preLoaderRoute: typeof ChallengeCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$id': {
+      id: '/p/$id'
+      path: '/p/$id'
+      fullPath: '/p/$id'
+      preLoaderRoute: typeof PIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/dodo': {
+      id: '/api/public/webhooks/dodo'
+      path: '/api/public/webhooks/dodo'
+      fullPath: '/api/public/webhooks/dodo'
+      preLoaderRoute: typeof ApiPublicWebhooksDodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  LeaderboardRoute: LeaderboardRoute,
+  PlayRoute: PlayRoute,
+  ChallengeCodeRoute: ChallengeCodeRoute,
+  PIdRoute: PIdRoute,
+  ApiPublicWebhooksDodoRoute: ApiPublicWebhooksDodoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
