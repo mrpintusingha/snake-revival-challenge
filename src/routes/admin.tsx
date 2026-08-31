@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Footer, Header } from "@/components/SiteChrome";
-import { adminStats } from "@/lib/api.functions";
+import { adminScoreAction, adminStats } from "@/lib/api.functions";
 import { formatPrice } from "@/lib/config";
 
 export const Route = createFileRoute("/admin")({
@@ -22,6 +22,7 @@ type Stats = Awaited<ReturnType<typeof adminStats>>;
 
 function AdminPage() {
   const fn = useServerFn(adminStats);
+  const fnModerate = useServerFn(adminScoreAction);
   const [password, setPassword] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState("");
@@ -36,6 +37,15 @@ function AdminPage() {
       setError(e instanceof Error ? e.message : "Failed");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const moderate = async (scoreId: string, status: "verified" | "rejected") => {
+    try {
+      await fnModerate({ data: { password, scoreId, status } });
+      setStats(await fn({ data: { password } }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Action failed");
     }
   };
 
@@ -165,11 +175,46 @@ function AdminPage() {
                 <p className="py-3 text-sm text-muted-foreground">None.</p>
               )}
               {stats.flaggedScores.map((s) => (
-                <Row
+                <div
                   key={s.id as string}
-                  left={s.status as string}
-                  right={String(s.score)}
-                  when={s.created_at as string}
+                  className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm"
+                >
+                  <span>
+                    {s.status as string} — session {String(s.game_session_id ?? "—").slice(0, 8)}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-muted-foreground">
+                      {new Date(s.created_at as string).toLocaleString()}
+                    </span>
+                    <span className="font-mono tabular-nums">{s.score}</span>
+                    <button
+                      type="button"
+                      onClick={() => moderate(s.id as string, "verified")}
+                      className="rounded border border-border px-2 py-1 text-xs uppercase hover:bg-accent"
+                    >
+                      Verify
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moderate(s.id as string, "rejected")}
+                      className="rounded border border-destructive/60 px-2 py-1 text-xs text-destructive uppercase hover:bg-accent"
+                    >
+                      Reject
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </Section>
+            <Section title="Admin actions">
+              {stats.adminLog.length === 0 && (
+                <p className="py-3 text-sm text-muted-foreground">None.</p>
+              )}
+              {stats.adminLog.map((a, i) => (
+                <Row
+                  key={i}
+                  left={a.action as string}
+                  right={String((a.details as Record<string, unknown>)["score"] ?? "")}
+                  when={a.created_at as string}
                 />
               ))}
             </Section>
@@ -206,7 +251,9 @@ function Row({ left, right, when }: { left: string; right: string; when: string 
     <div className="flex items-center justify-between py-2 text-sm">
       <span>{left}</span>
       <span className="flex gap-4">
-        <span className="text-muted-foreground">{new Date(when).toLocaleString()}</span>
+        {when && (
+          <span className="text-muted-foreground">{new Date(when).toLocaleString()}</span>
+        )}
         <span className="font-mono tabular-nums">{right}</span>
       </span>
     </div>
