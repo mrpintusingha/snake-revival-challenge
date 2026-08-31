@@ -358,10 +358,99 @@ function PlayPage() {
       </Shell>
     );
   }
+  // phase === "entry"
+  const paid = attemptsRemaining > 0;
+  return (
+    <Shell>
+      <div className="rise space-y-8 py-4">
+        {payFailed && (
+          <section className="border border-destructive/60 p-5 text-center">
+            <h2 className="pixel text-[10px] text-destructive">PAYMENT NOT COMPLETED</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Your game entry has not been charged.
+            </p>
+          </section>
+        )}
 
+        <section className="text-center">
+          <h1 className="pixel text-[12px] leading-[1.9] text-primary sm:text-[14px]">
+            {paid ? "YOU'RE IN" : "ENTER THE OFFICIAL CHALLENGE"}
+          </h1>
+          {paid ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {attemptsRemaining} official {attemptsRemaining === 1 ? "attempt" : "attempts"} left.
+              Keep your best score.
+            </p>
+          ) : (
+            <>
+              <p className="mt-5 font-mono text-5xl font-bold tabular-nums">{formatPrice()}</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {ENTRY_ATTEMPTS} official attempts. Keep your best score.
+              </p>
+            </>
+          )}
+        </section>
 
+        {!paid && (
+          <ul className="mx-auto w-fit space-y-2 text-sm text-muted-foreground">
+            {ENTRY_BENEFITS.map((b) => (
+              <li key={b}>
+                <span className="text-primary">✓</span> {b}
+              </li>
+            ))}
+          </ul>
+        )}
 
-  return null;
+        {!paid && (
+          <section className="space-y-3">
+            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              Nickname
+              <input
+                value={nickname}
+                maxLength={18}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="PINTU"
+                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+              />
+            </label>
+            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              Country
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+              >
+                <option value="">Prefer not to say</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+        )}
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            track("challenge_cta_clicked");
+            void (paid ? beginAttempt() : pay());
+          }}
+          className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? "One moment…" : paid ? "Start official attempt" : payFailed ? "Try again" : BRAND.payCta}
+        </button>
+
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          {BRAND.legal}
+          <br />
+          {BRAND.disclaimer}
+        </p>
+      </div>
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
