@@ -1,8 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { Phone, PhoneRef } from "@/components/ui/Phone";
+import { useRef } from "react";
+
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SnakeGame } from "@/components/SnakeGame";
+import { SnakeGame } from "@/components/game/SnakeGame";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { Footer, Header } from "@/components/SiteChrome";
@@ -61,9 +64,16 @@ function PlayPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
+  const phoneRef = useRef<PhoneRef>(null);
+  const [gameCanvas, setGameCanvas] = useState<HTMLCanvasElement | null>(null);
 
   const fnEntry = useServerFn(getEntry);
   const fnCheckout = useServerFn(startCheckout);
+  useEffect(() => {
+    if (phase === "game" && phoneRef.current) {
+      setGameCanvas(phoneRef.current.getCanvas());
+    }
+  }, [phase]);
   const fnStart = useServerFn(startAttempt);
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
@@ -145,6 +155,32 @@ function PlayPage() {
       }
       track("payment_completed", { mode: "test" });
       setAttemptsRemaining(ENTRY_ATTEMPTS);
+  const handleGameOver = useCallback(
+    async (result: { score: number; foods: number; durationMs: number }) => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const res = await fnSubmit({
+          data: {
+            sessionToken,
+            score: result.score,
+            foods: result.foods,
+            durationMs: result.durationMs,
+            attempt: attemptNumber,
+          },
+        });
+        setResult(res);
+        setPhase("result");
+        track("game_over", { score: result.score, rank: res.rankGlobal, tier: res.tier });
+      } catch (e) {
+        toast.error((e as Error).message ?? "An error occurred.");
+        setPhase("entry");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, fnSubmit, sessionToken, attemptNumber],
+  );
       toast.success("Entry unlocked");
       await beginAttempt();
     } catch (e) {
