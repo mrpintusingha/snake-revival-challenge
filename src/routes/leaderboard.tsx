@@ -31,7 +31,7 @@ function LeaderboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["leaderboard", scope, profileId],
     queryFn: () =>
-      getLeaderboard({ data: { scope, country: scope === "country" ? "India" : undefined, profileId } }),
+      getLeaderboard({ data: scope === "country" ? { scope, country: "India", profileId } : { scope, profileId } }),
     staleTime: 15000,
   });
 

@@ -158,7 +158,7 @@ function Landing() {
   );
 }
 
-function Stat({ value, label }: { value?: number; label: string }) {
+function Stat({ value, label }: { value: number | undefined; label: string }) {
   return (
     <div>
       <div className="font-mono text-xl tabular-nums">

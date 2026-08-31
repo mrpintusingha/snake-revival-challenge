@@ -92,7 +92,7 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
 });
 
 export const getLeaderboard = createServerFn({ method: "GET" })
-  .inputValidator((i: { scope?: string; country?: string; profileId?: string | null }) =>
+  .inputValidator((i: { scope?: string | undefined; country?: string | undefined; profileId?: string | null | undefined }) =>
     z
       .object({
         scope: z.enum(["global", "country", "friends"]).default("global"),
@@ -277,7 +277,7 @@ async function upsertProfile(
 }
 
 export const saveIdentity = createServerFn({ method: "POST" })
-  .inputValidator((i: { secret: string; nickname: string; country?: string | null }) =>
+  .inputValidator((i: { secret: string; nickname: string; country?: string | null | undefined }) =>
     z
       .object({
         secret: z.string().min(8).max(200),
@@ -307,7 +307,7 @@ const DODO_BASE = () =>
 
 export const startCheckout = createServerFn({ method: "POST" })
   .inputValidator(
-    (i: { secret: string; nickname: string; country?: string | null; challengeCode?: string | null; returnUrl: string }) =>
+    (i: { secret: string; nickname: string; country?: string | null | undefined; challengeCode?: string | null | undefined; returnUrl: string }) =>
       z
         .object({
           secret: z.string().min(8).max(200),
@@ -473,6 +473,8 @@ export const submitScore = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!session) throw new Error("Unknown game session");
     if (session.status !== "active") throw new Error("This attempt was already submitted");
+    const playerId = session.profile_id;
+    if (!playerId) throw new Error("Session has no player");
 
     // Server recomputes the score — the browser's number is never trusted.
     const foods = Math.min(data.foods, MAX_FOODS);
@@ -495,7 +497,7 @@ export const submitScore = createServerFn({ method: "POST" })
       .eq("id", session.id);
 
     await db.from("scores").insert({
-      profile_id: session.profile_id,
+      profile_id: playerId,
       game_session_id: session.id,
       score,
       status,
@@ -505,7 +507,7 @@ export const submitScore = createServerFn({ method: "POST" })
     const { data: profile } = await db
       .from("profiles")
       .select("id, nickname, country, best_score, games_played")
-      .eq("id", session.profile_id)
+      .eq("id", playerId)
       .single();
 
     const isBest = plausible && score > (profile?.best_score ?? 0);
@@ -516,7 +518,7 @@ export const submitScore = createServerFn({ method: "POST" })
         games_played: (profile?.games_played ?? 0) + 1,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", session.profile_id);
+      .eq("id", playerId);
 
     const best = isBest ? score : (profile?.best_score ?? 0);
 
@@ -548,20 +550,20 @@ export const submitScore = createServerFn({ method: "POST" })
       await db
         .from("player_achievements")
         .upsert(
-          { profile_id: session.profile_id, achievement_id: achievement.id },
+          { profile_id: playerId, achievement_id: achievement.id },
           { onConflict: "profile_id,achievement_id", ignoreDuplicates: true },
         );
     }
 
     if (plausible && score > 0) {
       await db.from("activity_events").insert({
-        profile_id: session.profile_id,
+        profile_id: playerId,
         event_type: "score",
         metadata: { nickname: profile?.nickname, score, rank: rankGlobal },
       });
       if (rankGlobal <= 100) {
         await db.from("activity_events").insert({
-          profile_id: session.profile_id,
+          profile_id: playerId,
           event_type: "top100",
           metadata: { nickname: profile?.nickname, rank: rankGlobal },
         });
@@ -579,7 +581,7 @@ export const submitScore = createServerFn({ method: "POST" })
       rankCountry: countryRank.count == null ? null : countryRank.count + 1,
       country: profile?.country ?? null,
       nickname: profile?.nickname ?? "Player",
-      profileId: session.profile_id,
+      profileId: playerId,
     };
   });
 
