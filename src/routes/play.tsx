@@ -235,7 +235,7 @@ function PlayPage() {
     );
   }
 
-    if (phase === "result") {
+  if (phase === "result") {
     const score = result?.score ?? 0;
     const url = code ? challengeUrl(code) : typeof window !== "undefined" ? window.location.origin : "";
     return (
@@ -350,3 +350,6 @@ function PlayPage() {
   }
 
 
+
+  return null;
+}
