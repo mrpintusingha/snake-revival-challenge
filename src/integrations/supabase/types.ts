@@ -70,6 +70,33 @@ export type Database = {
           },
         ]
       }
+      admin_actions: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          target_id: string | null
+          target_table: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_table: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_table?: string
+        }
+        Relationships: []
+      }
       challenges: {
         Row: {
           accepted_by: string | null
@@ -79,9 +106,11 @@ export type Database = {
           challenger_score: number
           completed_at: string | null
           created_at: string
+          expires_at: string
           id: string
           opened_at: string | null
           opens: number
+          status: string
         }
         Insert: {
           accepted_by?: string | null
@@ -91,9 +120,11 @@ export type Database = {
           challenger_score: number
           completed_at?: string | null
           created_at?: string
+          expires_at?: string
           id?: string
           opened_at?: string | null
           opens?: number
+          status?: string
         }
         Update: {
           accepted_by?: string | null
@@ -103,9 +134,11 @@ export type Database = {
           challenger_score?: number
           completed_at?: string | null
           created_at?: string
+          expires_at?: string
           id?: string
           opened_at?: string | null
           opens?: number
+          status?: string
         }
         Relationships: [
           {
@@ -137,6 +170,7 @@ export type Database = {
           session_token_hash: string
           started_at: string
           status: string
+          verification_status: string
           verified: boolean
         }
         Insert: {
@@ -151,6 +185,7 @@ export type Database = {
           session_token_hash: string
           started_at?: string
           status?: string
+          verification_status?: string
           verified?: boolean
         }
         Update: {
@@ -165,6 +200,7 @@ export type Database = {
           session_token_hash?: string
           started_at?: string
           status?: string
+          verification_status?: string
           verified?: boolean
         }
         Relationships: [
@@ -193,6 +229,7 @@ export type Database = {
           created_at: string
           currency: string
           id: string
+          metadata: Json
           profile_id: string | null
           provider: string
           provider_payment_id: string | null
@@ -208,6 +245,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          metadata?: Json
           profile_id?: string | null
           provider?: string
           provider_payment_id?: string | null
@@ -223,6 +261,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          metadata?: Json
           profile_id?: string | null
           provider?: string
           provider_payment_id?: string | null
@@ -278,6 +317,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_seed: string
           best_score: number
           country: string | null
           created_at: string
@@ -288,6 +328,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_seed?: string
           best_score?: number
           country?: string | null
           created_at?: string
@@ -298,6 +339,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_seed?: string
           best_score?: number
           country?: string | null
           created_at?: string
@@ -311,30 +353,39 @@ export type Database = {
       }
       scores: {
         Row: {
+          country_rank: number | null
           created_at: string
           game_session_id: string | null
+          global_rank: number | null
           id: string
           profile_id: string
           score: number
           status: string
+          verification_status: string | null
           verified_at: string | null
         }
         Insert: {
+          country_rank?: number | null
           created_at?: string
           game_session_id?: string | null
+          global_rank?: number | null
           id?: string
           profile_id: string
           score: number
           status?: string
+          verification_status?: string | null
           verified_at?: string | null
         }
         Update: {
+          country_rank?: number | null
           created_at?: string
           game_session_id?: string | null
+          global_rank?: number | null
           id?: string
           profile_id?: string
           score?: number
           status?: string
+          verification_status?: string | null
           verified_at?: string | null
         }
         Relationships: [
