@@ -851,19 +851,6 @@ export const adminStats = createServerFn({ method: "POST" })
       /** Rough viral coefficient: paid entries generated per challenge created. */
       viralCoefficient: challengeCount ? friendPayments / challengeCount : 0,
       adminLog: adminLog.data ?? [],
-      paidPlayers: new Set(paid.map((p) => p.profile_id)).size,
-      payments: paid.length,
-      revenue,
-      todayPlayers: todayPlayers.count ?? 0,
-      todayRevenue: todayPaid.reduce((s, p) => s + Number(p.amount), 0),
-      gamesPlayed: games.count ?? 0,
-      avgScore: scoreList.length
-        ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length)
-        : 0,
-      topScore: scoreList.length ? Math.max(...scoreList) : 0,
-      challengesCreated: challenges.count ?? 0,
-      challengesOpened: opened.count ?? 0,
-      repeatPlayers: repeat,
       flaggedCount: flagged.count ?? 0,
       recentPayments: recentPayments.data ?? [],
       recentGames: recentGames.data ?? [],
