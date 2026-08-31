@@ -14,7 +14,346 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          name: string
+          threshold: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          name: string
+          threshold: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          threshold?: number
+        }
+        Relationships: []
+      }
+      activity_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          profile_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          profile_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_events_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          accepted_by: string | null
+          accepted_score: number | null
+          challenge_code: string
+          challenger_id: string
+          challenger_score: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          opened_at: string | null
+          opens: number
+        }
+        Insert: {
+          accepted_by?: string | null
+          accepted_score?: number | null
+          challenge_code: string
+          challenger_id: string
+          challenger_score: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          opens?: number
+        }
+        Update: {
+          accepted_by?: string | null
+          accepted_score?: number | null
+          challenge_code?: string
+          challenger_id?: string
+          challenger_score?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          opens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_challenger_id_fkey"
+            columns: ["challenger_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          ended_at: string | null
+          game_version: string
+          id: string
+          payment_id: string | null
+          profile_id: string | null
+          score: number | null
+          session_token_hash: string
+          started_at: string
+          status: string
+          verified: boolean
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          ended_at?: string | null
+          game_version?: string
+          id?: string
+          payment_id?: string | null
+          profile_id?: string | null
+          score?: number | null
+          session_token_hash: string
+          started_at?: string
+          status?: string
+          verified?: boolean
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          ended_at?: string | null
+          game_version?: string
+          id?: string
+          payment_id?: string | null
+          profile_id?: string | null
+          score?: number | null
+          session_token_hash?: string
+          started_at?: string
+          status?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_sessions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          attempts_total: number
+          attempts_used: number
+          challenge_code: string | null
+          created_at: string
+          currency: string
+          id: string
+          profile_id: string | null
+          provider: string
+          provider_payment_id: string | null
+          status: string
+          test_mode: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          attempts_total?: number
+          attempts_used?: number
+          challenge_code?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          profile_id?: string | null
+          provider?: string
+          provider_payment_id?: string | null
+          status?: string
+          test_mode?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          attempts_total?: number
+          attempts_used?: number
+          challenge_code?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          profile_id?: string | null
+          provider?: string
+          provider_payment_id?: string | null
+          status?: string
+          test_mode?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_achievements: {
+        Row: {
+          achievement_id: string
+          created_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          achievement_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          achievement_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_achievements_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          best_score: number
+          country: string | null
+          created_at: string
+          games_played: number
+          id: string
+          nickname: string
+          secret_hash: string
+          updated_at: string
+        }
+        Insert: {
+          best_score?: number
+          country?: string | null
+          created_at?: string
+          games_played?: number
+          id?: string
+          nickname: string
+          secret_hash: string
+          updated_at?: string
+        }
+        Update: {
+          best_score?: number
+          country?: string | null
+          created_at?: string
+          games_played?: number
+          id?: string
+          nickname?: string
+          secret_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scores: {
+        Row: {
+          created_at: string
+          game_session_id: string | null
+          id: string
+          profile_id: string
+          score: number
+          status: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          game_session_id?: string | null
+          id?: string
+          profile_id: string
+          score: number
+          status?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          game_session_id?: string | null
+          id?: string
+          profile_id?: string
+          score?: number
+          status?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scores_game_session_id_fkey"
+            columns: ["game_session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scores_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
