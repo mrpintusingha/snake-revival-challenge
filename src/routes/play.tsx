@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -51,7 +51,6 @@ type Battle = Awaited<ReturnType<typeof completeChallenge>>;
 const COUNTRIES = ["India", "United States", "United Kingdom", "Nigeria", "Brazil", "Indonesia", "Philippines", "Pakistan", "Bangladesh", "Germany", "Other"];
 
 function PlayPage() {
-  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
   const [nickname, setNickname] = useState("");
   const [country, setCountry] = useState("");
@@ -121,7 +120,7 @@ function PlayPage() {
       setResult(null);
       setBattle(null);
       setPhase("transition");
-      track("game_started", { attempt: res.attemptNumber });
+      track("official_game_started", { attempt: res.attemptNumber });
       setTimeout(() => setPhase("game"), 1600);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start the game");
@@ -167,7 +166,7 @@ function PlayPage() {
 
   const onGameOver = useCallback(
     async (r: { score: number; foods: number; durationMs: number }) => {
-      track("game_completed", { score: r.score });
+      track("official_game_completed", { score: r.score });
       try {
         const res = await fnSubmit({
           data: {
@@ -180,6 +179,7 @@ function PlayPage() {
         setResult(res);
         setStoredProfileId(res.profileId);
         track("score_submitted", { score: res.score, rank: res.rankGlobal });
+        track(res.status === "verified" ? "score_verified" : "score_flagged", { score: res.score });
 
         const pending = getPendingChallenge();
         if (pending) {
@@ -273,6 +273,14 @@ function PlayPage() {
           <section className="text-center">
             <h1 className="text-xs tracking-[0.3em] text-muted-foreground uppercase">Your score</h1>
             <h2 className="font-mono text-6xl font-bold tabular-nums text-foreground mt-2">{score.toLocaleString()}</h2>
+            {result?.isBest && (
+              <div className="mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Previous best: {result.previousBest.toLocaleString()}
+                </p>
+                <p className="pixel mt-2 text-[11px] text-primary">NEW PERSONAL BEST 🎉</p>
+              </div>
+            )}
             {result && (
               <>
                 <h3 className="mt-4 pixel text-[11px] text-primary">GLOBAL #{result.rankGlobal}</h3>
