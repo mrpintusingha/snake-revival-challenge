@@ -871,3 +871,135 @@ export const adminStats = createServerFn({ method: "POST" })
       flaggedScores: flaggedScores.data ?? [],
     };
   });
+
+/**
+ * Belt-and-braces payment confirmation.
+ * The webhook is the source of truth, but if the player comes back from the
+ * checkout before the webhook lands (or the redirect is lost), this asks Dodo
+ * directly so nobody is left without the entry they paid for.
+ */
+export const verifyPayment = createServerFn({ method: "POST" })
+  .inputValidator((i: { secret: string }) =>
+    z.object({ secret: z.string().min(8).max(200) }).parse(i),
+  )
+  .handler(async ({ data }) => {
+    rateLimit(`verify:${data.secret.slice(0, 12)}`, 30, 60000);
+    const db = await admin();
+    const { data: profile } = await db
+      .from("profiles")
+      .select("id")
+      .eq("secret_hash", await sha256(data.secret))
+      .maybeSingle();
+    if (!profile) return { status: "none" as const, attemptsRemaining: 0 };
+
+    const { data: payments } = await db
+      .from("payments")
+      .select("id, status, provider_payment_id, attempts_total, attempts_used, created_at")
+      .eq("profile_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const list = payments ?? [];
+    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
+
+    for (const p of list) {
+      if (p.status !== "pending" || !apiKey || !p.provider_payment_id) continue;
+      try {
+        const res = await fetch(`${DODO_BASE()}/payments/${p.provider_payment_id}`, {
+          headers: { authorization: `Bearer ${apiKey}` },
+        });
+        if (!res.ok) continue;
+        const json = (await res.json()) as { status?: string; payment_id?: string };
+        const s = (json.status ?? "").toLowerCase();
+        if (s === "succeeded" || s === "paid") {
+          await db
+            .from("payments")
+            .update({
+              status: "succeeded",
+              provider_payment_id: json.payment_id ?? p.provider_payment_id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", p.id)
+            .eq("status", "pending"); // idempotent: never re-entitle
+          p.status = "succeeded";
+        } else if (s === "failed" || s === "cancelled") {
+          await db
+            .from("payments")
+            .update({ status: s === "failed" ? "failed" : "cancelled", updated_at: new Date().toISOString() })
+            .eq("id", p.id);
+          p.status = s;
+        }
+      } catch {
+        // Network hiccup — the webhook will still settle this payment.
+      }
+    }
+
+    const entry = list.find((p) => p.status === "succeeded" && p.attempts_used < p.attempts_total);
+    if (entry) {
+      return {
+        status: "paid" as const,
+        attemptsRemaining: entry.attempts_total - entry.attempts_used,
+      };
+    }
+    const latest = list[0];
+    if (latest?.status === "failed" || latest?.status === "cancelled") {
+      return { status: latest.status as "failed" | "cancelled", attemptsRemaining: 0 };
+    }
+    if (latest?.status === "pending") return { status: "pending" as const, attemptsRemaining: 0 };
+    return { status: "none" as const, attemptsRemaining: 0 };
+  });
+
+/** Admin moderation: verify / flag / reject a score and rebuild the player's best. */
+export const adminScoreAction = createServerFn({ method: "POST" })
+  .inputValidator((i: { password: string; scoreId: string; status: string }) =>
+    z
+      .object({
+        password: z.string().min(1).max(200),
+        scoreId: z.string().uuid(),
+        status: z.enum(["verified", "flagged", "rejected"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env["ADMIN_PASSWORD"];
+    if (!expected) throw new Error("Admin dashboard is not configured. Set ADMIN_PASSWORD.");
+    if (data.password !== expected) throw new Error("Incorrect password");
+
+    const db = await admin();
+    const { data: row } = await db
+      .from("scores")
+      .select("id, profile_id, score, status")
+      .eq("id", data.scoreId)
+      .maybeSingle();
+    if (!row) throw new Error("Score not found");
+
+    await db
+      .from("scores")
+      .update({
+        status: data.status,
+        verified_at: data.status === "verified" ? new Date().toISOString() : null,
+      })
+      .eq("id", row.id);
+
+    // Rankings follow best_score, so rebuild it from the remaining verified scores.
+    const { data: verified } = await db
+      .from("scores")
+      .select("score")
+      .eq("profile_id", row.profile_id)
+      .eq("status", "verified")
+      .order("score", { ascending: false })
+      .limit(1);
+    await db
+      .from("profiles")
+      .update({ best_score: verified?.[0]?.score ?? 0, updated_at: new Date().toISOString() })
+      .eq("id", row.profile_id);
+
+    await db.from("admin_actions").insert({
+      action: `score:${data.status}`,
+      target_table: "scores",
+      target_id: row.id,
+      details: { previous_status: row.status, score: row.score, profile_id: row.profile_id },
+    });
+
+    return { ok: true, status: data.status };
+  });
