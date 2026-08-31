@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicWebhooksDodoRouteImport } from './routes/api/public/webhooks/dodo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksDodoRoute = ApiPublicWebhooksDodoRouteImport.update({
+  id: '/api/public/webhooks/dodo',
+  path: '/api/public/webhooks/dodo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/webhooks/dodo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/webhooks/dodo'
+  id: '__root__' | '/' | '/api/public/webhooks/dodo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicWebhooksDodoRoute: typeof ApiPublicWebhooksDodoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/dodo': {
+      id: '/api/public/webhooks/dodo'
+      path: '/api/public/webhooks/dodo'
+      fullPath: '/api/public/webhooks/dodo'
+      preLoaderRoute: typeof ApiPublicWebhooksDodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicWebhooksDodoRoute: ApiPublicWebhooksDodoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
