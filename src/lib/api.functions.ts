@@ -521,19 +521,21 @@ export const submitScore = createServerFn({ method: "POST" })
       .eq("id", playerId)
       .single();
 
-    const isBest = plausible && score > (profile?.best_score ?? 0);
+    const previousBest = profile?.best_score ?? 0;
+    const isBest = plausible && score > previousBest;
     await db
       .from("profiles")
       .update({
-        best_score: isBest ? score : (profile?.best_score ?? 0),
+        best_score: isBest ? score : previousBest,
         games_played: (profile?.games_played ?? 0) + 1,
         updated_at: new Date().toISOString(),
       })
       .eq("id", playerId);
 
-    const best = isBest ? score : (profile?.best_score ?? 0);
+    const best = isBest ? score : previousBest;
 
-    // Ranks
+    // Ranks. Tie-break rule: equal best scores share the same rank, and the
+    // rank is "number of players strictly above me, plus one".
     const [{ count: betterGlobal }, countryRank, { count: totalPlayers }] = await Promise.all([
       db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", best),
       profile?.country
@@ -550,6 +552,16 @@ export const submitScore = createServerFn({ method: "POST" })
     const total = Math.max(totalPlayers ?? 1, 1);
     const percentile = Math.max(0, Math.min(99, Math.round(((total - rankGlobal) / total) * 100)));
     const tier = tierFor(score);
+
+    if (scoreRow?.id) {
+      await db
+        .from("scores")
+        .update({
+          global_rank: rankGlobal,
+          country_rank: countryRank.count == null ? null : countryRank.count + 1,
+        })
+        .eq("id", scoreRow.id);
+    }
 
     // Achievement unlock
     const { data: achievement } = await db
