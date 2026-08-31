@@ -13,12 +13,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "You played Snake as a kid. Now prove you still have it. Enter the 90s Snake Challenge, get your score and challenge your friends.",
+          "Bring back your childhood memories. Now prove you still have it. Enter the 90s Snake Challenge, get your score and challenge your friends.",
       },
       { property: "og:title", content: `${BRAND.name} — Can You Still Beat Your Friends?` },
       {
         property: "og:description",
-        content: "You played it as a kid. Can you still beat your friends? Enter the challenge.",
+        content: "Bring back your childhood memories. Can you still beat your friends? Enter the challenge.",
       },
     ],
   }),

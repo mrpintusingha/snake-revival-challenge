@@ -14,8 +14,8 @@ export const formatPrice = (amount: number = ENTRY_PRICE) =>
 /** All brand / nostalgia wording. Editable without touching components. */
 export const BRAND = {
   name: "90s Nokia Snake Challenge",
-  short: "90s Snake",
-  tagline1: "You played it as a kid.",
+  short: "90s Kids",
+  tagline1: "Bring back your childhood memories.",
   tagline2: "Can you still beat your friends?",
   supporting:
     "The classic mobile Snake experience, rebuilt as a global challenge for the 90s generation.",
