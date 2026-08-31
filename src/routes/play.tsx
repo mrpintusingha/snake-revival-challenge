@@ -83,9 +83,21 @@ function PlayPage() {
         }
         if (res.entry) {
           setAttemptsRemaining(res.entry.attempts_total - res.entry.attempts_used);
-          setPhase("entry");
-        } else {
-          setPhase("entry");
+        }
+        setPhase("entry");
+
+        // Coming back from checkout: confirm with the provider before trusting
+        // the redirect, and never lose an entry that was actually paid for.
+        if (!res.entry) {
+          const conf = await fnVerify({ data: { secret: getPlayerSecret() } });
+          if (cancelled) return;
+          if (conf.status === "paid") {
+            setAttemptsRemaining(conf.attemptsRemaining);
+            track("payment_completed", { mode: "provider" });
+          } else if (conf.status === "failed" || conf.status === "cancelled") {
+            setPayFailed(true);
+            track("payment_failed", { reason: conf.status });
+          }
         }
       } catch {
         if (!cancelled) setPhase("entry");
@@ -94,12 +106,7 @@ function PlayPage() {
     return () => {
       cancelled = true;
     };
-  }, [fnEntry]);
-
-  const [hasPaidEntry, setHasPaidEntry] = useState(false);
-  useEffect(() => {
-    setHasPaidEntry(attemptsRemaining > 0);
-  }, [attemptsRemaining]);
+  }, [fnEntry, fnVerify]);
 
   const beginAttempt = useCallback(async () => {
     setBusy(true);
