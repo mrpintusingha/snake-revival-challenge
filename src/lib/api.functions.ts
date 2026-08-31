@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ENTRY_ATTEMPTS, ENTRY_CURRENCY, ENTRY_PRICE, GAME_VERSION, tierFor } from "./config";
+import {
+  ENTRY_ATTEMPTS,
+  ENTRY_CURRENCY,
+  ENTRY_PRICE,
+  GAME_VERSION,
+  MAX_SESSION_DURATION_MS,
+  tierFor,
+} from "./config";
 import { MAX_FOODS, MIN_MS_PER_FOOD, scoreForFoods } from "./scoring";
 
 /* ------------------------------------------------------------------ utils */
