@@ -737,8 +737,10 @@ export const adminStats = createServerFn({ method: "POST" })
     const [
       players,
       paidPayments,
+      allPayments,
       todayPlayers,
       games,
+      sessionsStarted,
       challenges,
       opened,
       flagged,
@@ -747,11 +749,14 @@ export const adminStats = createServerFn({ method: "POST" })
       recentChallenges,
       flaggedScores,
       allScores,
+      adminLog,
     ] = await Promise.all([
       db.from("profiles").select("id", { count: "exact", head: true }),
-      db.from("payments").select("amount, created_at, profile_id").eq("status", "succeeded"),
+      db.from("payments").select("amount, created_at, profile_id, challenge_code").eq("status", "succeeded"),
+      db.from("payments").select("status, challenge_code, created_at"),
       db.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", dayAgo),
       db.from("game_sessions").select("id", { count: "exact", head: true }).eq("status", "completed"),
+      db.from("game_sessions").select("id", { count: "exact", head: true }),
       db.from("challenges").select("id", { count: "exact", head: true }),
       db.from("challenges").select("id", { count: "exact", head: true }).not("opened_at", "is", null),
       db.from("scores").select("id", { count: "exact", head: true }).neq("status", "verified"),
@@ -772,14 +777,20 @@ export const adminStats = createServerFn({ method: "POST" })
         .limit(10),
       db
         .from("scores")
-        .select("id, score, status, created_at")
+        .select("id, score, status, created_at, profile_id, game_session_id")
         .neq("status", "verified")
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(20),
       db.from("scores").select("score").eq("status", "verified"),
+      db
+        .from("admin_actions")
+        .select("action, target_id, details, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
     const paid = paidPayments.data ?? [];
+    const every = allPayments.data ?? [];
     const revenue = paid.reduce((sum, p) => sum + Number(p.amount), 0);
     const todayPaid = paid.filter((p) => p.created_at >= dayAgo);
     const scoreList = (allScores.data ?? []).map((s) => s.score as number);
@@ -787,8 +798,59 @@ export const adminStats = createServerFn({ method: "POST" })
       paid.map((p) => p.profile_id).filter((id, i, arr) => arr.indexOf(id) !== i),
     ).size;
 
+    const since = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
+    const sum = (from: string, to?: string) =>
+      paid
+        .filter((p) => p.created_at >= from && (!to || p.created_at < to))
+        .reduce((s, p) => s + Number(p.amount), 0);
+
+    const friendPayments = paid.filter((p) => p.challenge_code).length;
+    const friendCheckouts = every.filter((p) => p.challenge_code).length;
+    const paidPlayerCount = new Set(paid.map((p) => p.profile_id)).size;
+    const challengeCount = challenges.count ?? 0;
+
     return {
       totalPlayers: players.count ?? 0,
+      paidPlayers: paidPlayerCount,
+      payments: paid.length,
+      revenue,
+      todayPlayers: todayPlayers.count ?? 0,
+      todayRevenue: todayPaid.reduce((s, p) => s + Number(p.amount), 0),
+      gamesPlayed: games.count ?? 0,
+      avgScore: scoreList.length
+        ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length)
+        : 0,
+      topScore: scoreList.length ? Math.max(...scoreList) : 0,
+      challengesCreated: challengeCount,
+      challengesOpened: opened.count ?? 0,
+      repeatPlayers: repeat,
+      revenueWindows: {
+        today: sum(dayAgo),
+        yesterday: sum(since(2), dayAgo),
+        week: sum(since(7)),
+        month: sum(since(30)),
+        allTime: revenue,
+      },
+      paymentCounts: {
+        started: every.length,
+        succeeded: paid.length,
+        failed: every.filter((p) => p.status === "failed").length,
+        refunded: every.filter((p) => p.status === "refunded").length,
+      },
+      funnel: {
+        checkoutStarted: every.length,
+        paymentCompleted: paid.length,
+        gameStarted: sessionsStarted.count ?? 0,
+        gameCompleted: games.count ?? 0,
+        challengeCreated: challengeCount,
+        challengeOpened: opened.count ?? 0,
+        friendCheckout: friendCheckouts,
+        friendPayment: friendPayments,
+      },
+      revenuePerPaidPlayer: paidPlayerCount ? revenue / paidPlayerCount : 0,
+      /** Rough viral coefficient: paid entries generated per challenge created. */
+      viralCoefficient: challengeCount ? friendPayments / challengeCount : 0,
+      adminLog: adminLog.data ?? [],
       paidPlayers: new Set(paid.map((p) => p.profile_id)).size,
       payments: paid.length,
       revenue,
