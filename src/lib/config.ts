@@ -1,12 +1,25 @@
 /**
  * Central product configuration.
- * Price and all Nokia-related wording live here so they can be changed in one
- * place (e.g. after legal review or during a pricing test).
+ * Price, attempts, timings, wording and feature flags all live here so they can
+ * be changed in one place (pricing tests, legal review, copy experiments).
  */
 
-export const ENTRY_PRICE = 1.0;
+export const ENTRY_PRICE = Number(import.meta.env["VITE_ENTRY_PRICE"] ?? 1);
 export const ENTRY_CURRENCY = "USD";
-export const ENTRY_ATTEMPTS = 3;
+export const ENTRY_ATTEMPTS = Number(import.meta.env["VITE_ENTRY_ATTEMPTS"] ?? 3);
+
+/** Longest a single official attempt may last before the session is void. */
+export const MAX_SESSION_DURATION_MS = 30 * 60 * 1000;
+/** Challenge links stay alive for a long time so WhatsApp shares keep working. */
+export const CHALLENGE_EXPIRY_DAYS = 365;
+
+/** Simple MVP feature flags — no experimentation platform needed. */
+export const FEATURE_FLAGS = {
+  showLiveActivity: true,
+  showPlayingNow: true,
+  showFriendsLeaderboard: true,
+  showShareCard: true,
+} as const;
 
 export const formatPrice = (amount: number = ENTRY_PRICE) =>
   amount % 1 === 0 ? `$${amount.toFixed(0)}` : `$${amount.toFixed(2)}`;
@@ -26,6 +39,14 @@ export const BRAND = {
   legal:
     "This is a paid game experience, not gambling. No cash prizes, no prize pool, no payouts, no betting. You pay to participate.",
 } as const;
+
+export const ENTRY_BENEFITS = [
+  "Global leaderboard",
+  "Personal best",
+  "Friend challenges",
+  "Shareable score",
+  "Classic Snake experience",
+] as const;
 
 export const GAME_VERSION = "1.0.0";
 

@@ -25,12 +25,18 @@ export function Footer() {
     <footer className="mx-auto mt-16 w-full max-w-3xl border-t border-border px-5 py-8 text-xs leading-relaxed text-muted-foreground">
       <p>{BRAND.disclaimer}</p>
       <p className="mt-2">{BRAND.legal}</p>
-      <p className="mt-3 flex gap-4">
+      <p className="mt-3 flex flex-wrap gap-4">
         <Link to="/leaderboard" className="hover:text-foreground">
           Leaderboard
         </Link>
         <Link to="/play" className="hover:text-foreground">
           Enter
+        </Link>
+        <Link to="/privacy" className="hover:text-foreground">
+          Privacy
+        </Link>
+        <Link to="/terms" className="hover:text-foreground">
+          Terms
         </Link>
       </p>
     </footer>

@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as PlayRouteImport } from './routes/play'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ChallengeCodeRouteImport } from './routes/challenge.$code'
 import { Route as PIdRouteImport } from './routes/p.$id'
 import { Route as ApiPublicWebhooksDodoRouteImport } from './routes/api/public/webhooks/dodo'
@@ -37,6 +39,16 @@ const PlayRoute = PlayRouteImport.update({
   path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChallengeCodeRoute = ChallengeCodeRouteImport.update({
   id: '/challenge/$code',
   path: '/challenge/$code',
@@ -58,6 +70,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
@@ -67,6 +81,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
@@ -77,6 +93,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
@@ -88,6 +106,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/leaderboard'
     | '/play'
+    | '/privacy'
+    | '/terms'
     | '/challenge/$code'
     | '/p/$id'
     | '/api/public/webhooks/dodo'
@@ -97,6 +117,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/leaderboard'
     | '/play'
+    | '/privacy'
+    | '/terms'
     | '/challenge/$code'
     | '/p/$id'
     | '/api/public/webhooks/dodo'
@@ -106,6 +128,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/leaderboard'
     | '/play'
+    | '/privacy'
+    | '/terms'
     | '/challenge/$code'
     | '/p/$id'
     | '/api/public/webhooks/dodo'
@@ -116,6 +140,8 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   LeaderboardRoute: typeof LeaderboardRoute
   PlayRoute: typeof PlayRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   ChallengeCodeRoute: typeof ChallengeCodeRoute
   PIdRoute: typeof PIdRoute
   ApiPublicWebhooksDodoRoute: typeof ApiPublicWebhooksDodoRoute
@@ -151,6 +177,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/challenge/$code': {
       id: '/challenge/$code'
       path: '/challenge/$code'
@@ -180,6 +220,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   LeaderboardRoute: LeaderboardRoute,
   PlayRoute: PlayRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   ChallengeCodeRoute: ChallengeCodeRoute,
   PIdRoute: PIdRoute,
   ApiPublicWebhooksDodoRoute: ApiPublicWebhooksDodoRoute,

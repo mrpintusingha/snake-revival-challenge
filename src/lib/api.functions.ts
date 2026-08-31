@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ENTRY_ATTEMPTS, ENTRY_CURRENCY, ENTRY_PRICE, GAME_VERSION, tierFor } from "./config";
+import {
+  ENTRY_ATTEMPTS,
+  ENTRY_CURRENCY,
+  ENTRY_PRICE,
+  GAME_VERSION,
+  MAX_SESSION_DURATION_MS,
+  tierFor,
+} from "./config";
 import { MAX_FOODS, MIN_MS_PER_FOOD, scoreForFoods } from "./scoring";
 
 /* ------------------------------------------------------------------ utils */
@@ -206,10 +213,14 @@ export const getChallenge = createServerFn({ method: "GET" })
     const db = await publicDb();
     const { data: ch } = await db
       .from("challenges")
-      .select("id, challenge_code, challenger_score, challenger_id, accepted_by, accepted_score, created_at")
+      .select(
+        "id, challenge_code, challenger_score, challenger_id, accepted_by, accepted_score, created_at, expires_at, status",
+      )
       .eq("challenge_code", data.code.toUpperCase())
       .maybeSingle();
     if (!ch) return null;
+    // Expired links are treated as missing so the page shows the friendly state.
+    if (ch.expires_at && new Date(ch.expires_at as string).getTime() < Date.now()) return null;
     const { data: challenger } = await db
       .from("profiles")
       .select("id, nickname, country, best_score")
@@ -480,7 +491,9 @@ export const submitScore = createServerFn({ method: "POST" })
     const foods = Math.min(data.foods, MAX_FOODS);
     const score = scoreForFoods(foods);
     const elapsed = Date.now() - new Date(session.started_at).getTime();
+    const expired = elapsed > MAX_SESSION_DURATION_MS;
     const plausible =
+      !expired &&
       data.durationMs >= foods * MIN_MS_PER_FOOD &&
       elapsed >= foods * MIN_MS_PER_FOOD * 0.7 &&
       data.reportedScore === score;
@@ -491,18 +504,23 @@ export const submitScore = createServerFn({ method: "POST" })
       .update({
         ended_at: new Date().toISOString(),
         score,
-        status: "completed",
+        status: expired ? "expired" : "completed",
         verified: plausible,
+        verification_status: status,
       })
       .eq("id", session.id);
 
-    await db.from("scores").insert({
-      profile_id: playerId,
-      game_session_id: session.id,
-      score,
-      status,
-      verified_at: plausible ? new Date().toISOString() : null,
-    });
+    const { data: scoreRow } = await db
+      .from("scores")
+      .insert({
+        profile_id: playerId,
+        game_session_id: session.id,
+        score,
+        status,
+        verified_at: plausible ? new Date().toISOString() : null,
+      })
+      .select("id")
+      .single();
 
     const { data: profile } = await db
       .from("profiles")
@@ -510,19 +528,21 @@ export const submitScore = createServerFn({ method: "POST" })
       .eq("id", playerId)
       .single();
 
-    const isBest = plausible && score > (profile?.best_score ?? 0);
+    const previousBest = profile?.best_score ?? 0;
+    const isBest = plausible && score > previousBest;
     await db
       .from("profiles")
       .update({
-        best_score: isBest ? score : (profile?.best_score ?? 0),
+        best_score: isBest ? score : previousBest,
         games_played: (profile?.games_played ?? 0) + 1,
         updated_at: new Date().toISOString(),
       })
       .eq("id", playerId);
 
-    const best = isBest ? score : (profile?.best_score ?? 0);
+    const best = isBest ? score : previousBest;
 
-    // Ranks
+    // Ranks. Tie-break rule: equal best scores share the same rank, and the
+    // rank is "number of players strictly above me, plus one".
     const [{ count: betterGlobal }, countryRank, { count: totalPlayers }] = await Promise.all([
       db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", best),
       profile?.country
@@ -539,6 +559,16 @@ export const submitScore = createServerFn({ method: "POST" })
     const total = Math.max(totalPlayers ?? 1, 1);
     const percentile = Math.max(0, Math.min(99, Math.round(((total - rankGlobal) / total) * 100)));
     const tier = tierFor(score);
+
+    if (scoreRow?.id) {
+      await db
+        .from("scores")
+        .update({
+          global_rank: rankGlobal,
+          country_rank: countryRank.count == null ? null : countryRank.count + 1,
+        })
+        .eq("id", scoreRow.id);
+    }
 
     // Achievement unlock
     const { data: achievement } = await db
@@ -573,6 +603,7 @@ export const submitScore = createServerFn({ method: "POST" })
     return {
       score,
       best,
+      previousBest,
       isBest,
       status,
       tier,
@@ -706,8 +737,10 @@ export const adminStats = createServerFn({ method: "POST" })
     const [
       players,
       paidPayments,
+      allPayments,
       todayPlayers,
       games,
+      sessionsStarted,
       challenges,
       opened,
       flagged,
@@ -716,11 +749,14 @@ export const adminStats = createServerFn({ method: "POST" })
       recentChallenges,
       flaggedScores,
       allScores,
+      adminLog,
     ] = await Promise.all([
       db.from("profiles").select("id", { count: "exact", head: true }),
-      db.from("payments").select("amount, created_at, profile_id").eq("status", "succeeded"),
+      db.from("payments").select("amount, created_at, profile_id, challenge_code").eq("status", "succeeded"),
+      db.from("payments").select("status, challenge_code, created_at"),
       db.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", dayAgo),
       db.from("game_sessions").select("id", { count: "exact", head: true }).eq("status", "completed"),
+      db.from("game_sessions").select("id", { count: "exact", head: true }),
       db.from("challenges").select("id", { count: "exact", head: true }),
       db.from("challenges").select("id", { count: "exact", head: true }).not("opened_at", "is", null),
       db.from("scores").select("id", { count: "exact", head: true }).neq("status", "verified"),
@@ -741,14 +777,20 @@ export const adminStats = createServerFn({ method: "POST" })
         .limit(10),
       db
         .from("scores")
-        .select("id, score, status, created_at")
+        .select("id, score, status, created_at, profile_id, game_session_id")
         .neq("status", "verified")
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(20),
       db.from("scores").select("score").eq("status", "verified"),
+      db
+        .from("admin_actions")
+        .select("action, target_id, details, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
     const paid = paidPayments.data ?? [];
+    const every = allPayments.data ?? [];
     const revenue = paid.reduce((sum, p) => sum + Number(p.amount), 0);
     const todayPaid = paid.filter((p) => p.created_at >= dayAgo);
     const scoreList = (allScores.data ?? []).map((s) => s.score as number);
@@ -756,9 +798,20 @@ export const adminStats = createServerFn({ method: "POST" })
       paid.map((p) => p.profile_id).filter((id, i, arr) => arr.indexOf(id) !== i),
     ).size;
 
+    const since = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
+    const sum = (from: string, to?: string) =>
+      paid
+        .filter((p) => p.created_at >= from && (!to || p.created_at < to))
+        .reduce((s, p) => s + Number(p.amount), 0);
+
+    const friendPayments = paid.filter((p) => p.challenge_code).length;
+    const friendCheckouts = every.filter((p) => p.challenge_code).length;
+    const paidPlayerCount = new Set(paid.map((p) => p.profile_id)).size;
+    const challengeCount = challenges.count ?? 0;
+
     return {
       totalPlayers: players.count ?? 0,
-      paidPlayers: new Set(paid.map((p) => p.profile_id)).size,
+      paidPlayers: paidPlayerCount,
       payments: paid.length,
       revenue,
       todayPlayers: todayPlayers.count ?? 0,
@@ -768,13 +821,172 @@ export const adminStats = createServerFn({ method: "POST" })
         ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length)
         : 0,
       topScore: scoreList.length ? Math.max(...scoreList) : 0,
-      challengesCreated: challenges.count ?? 0,
+      challengesCreated: challengeCount,
       challengesOpened: opened.count ?? 0,
       repeatPlayers: repeat,
+      revenueWindows: {
+        today: sum(dayAgo),
+        yesterday: sum(since(2), dayAgo),
+        week: sum(since(7)),
+        month: sum(since(30)),
+        allTime: revenue,
+      },
+      paymentCounts: {
+        started: every.length,
+        succeeded: paid.length,
+        failed: every.filter((p) => p.status === "failed").length,
+        refunded: every.filter((p) => p.status === "refunded").length,
+      },
+      funnel: {
+        checkoutStarted: every.length,
+        paymentCompleted: paid.length,
+        gameStarted: sessionsStarted.count ?? 0,
+        gameCompleted: games.count ?? 0,
+        challengeCreated: challengeCount,
+        challengeOpened: opened.count ?? 0,
+        friendCheckout: friendCheckouts,
+        friendPayment: friendPayments,
+      },
+      revenuePerPaidPlayer: paidPlayerCount ? revenue / paidPlayerCount : 0,
+      /** Rough viral coefficient: paid entries generated per challenge created. */
+      viralCoefficient: challengeCount ? friendPayments / challengeCount : 0,
+      adminLog: adminLog.data ?? [],
       flaggedCount: flagged.count ?? 0,
       recentPayments: recentPayments.data ?? [],
       recentGames: recentGames.data ?? [],
       recentChallenges: recentChallenges.data ?? [],
       flaggedScores: flaggedScores.data ?? [],
     };
+  });
+
+/**
+ * Belt-and-braces payment confirmation.
+ * The webhook is the source of truth, but if the player comes back from the
+ * checkout before the webhook lands (or the redirect is lost), this asks Dodo
+ * directly so nobody is left without the entry they paid for.
+ */
+export const verifyPayment = createServerFn({ method: "POST" })
+  .inputValidator((i: { secret: string }) =>
+    z.object({ secret: z.string().min(8).max(200) }).parse(i),
+  )
+  .handler(async ({ data }) => {
+    rateLimit(`verify:${data.secret.slice(0, 12)}`, 30, 60000);
+    const db = await admin();
+    const { data: profile } = await db
+      .from("profiles")
+      .select("id")
+      .eq("secret_hash", await sha256(data.secret))
+      .maybeSingle();
+    if (!profile) return { status: "none" as const, attemptsRemaining: 0 };
+
+    const { data: payments } = await db
+      .from("payments")
+      .select("id, status, provider_payment_id, attempts_total, attempts_used, created_at")
+      .eq("profile_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const list = payments ?? [];
+    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
+
+    for (const p of list) {
+      if (p.status !== "pending" || !apiKey || !p.provider_payment_id) continue;
+      try {
+        const res = await fetch(`${DODO_BASE()}/payments/${p.provider_payment_id}`, {
+          headers: { authorization: `Bearer ${apiKey}` },
+        });
+        if (!res.ok) continue;
+        const json = (await res.json()) as { status?: string; payment_id?: string };
+        const s = (json.status ?? "").toLowerCase();
+        if (s === "succeeded" || s === "paid") {
+          await db
+            .from("payments")
+            .update({
+              status: "succeeded",
+              provider_payment_id: json.payment_id ?? p.provider_payment_id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", p.id)
+            .eq("status", "pending"); // idempotent: never re-entitle
+          p.status = "succeeded";
+        } else if (s === "failed" || s === "cancelled") {
+          await db
+            .from("payments")
+            .update({ status: s === "failed" ? "failed" : "cancelled", updated_at: new Date().toISOString() })
+            .eq("id", p.id);
+          p.status = s;
+        }
+      } catch {
+        // Network hiccup — the webhook will still settle this payment.
+      }
+    }
+
+    const entry = list.find((p) => p.status === "succeeded" && p.attempts_used < p.attempts_total);
+    if (entry) {
+      return {
+        status: "paid" as const,
+        attemptsRemaining: entry.attempts_total - entry.attempts_used,
+      };
+    }
+    const latest = list[0];
+    if (latest?.status === "failed" || latest?.status === "cancelled") {
+      return { status: latest.status as "failed" | "cancelled", attemptsRemaining: 0 };
+    }
+    if (latest?.status === "pending") return { status: "pending" as const, attemptsRemaining: 0 };
+    return { status: "none" as const, attemptsRemaining: 0 };
+  });
+
+/** Admin moderation: verify / flag / reject a score and rebuild the player's best. */
+export const adminScoreAction = createServerFn({ method: "POST" })
+  .inputValidator((i: { password: string; scoreId: string; status: string }) =>
+    z
+      .object({
+        password: z.string().min(1).max(200),
+        scoreId: z.string().uuid(),
+        status: z.enum(["verified", "flagged", "rejected"]),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data }) => {
+    const expected = process.env["ADMIN_PASSWORD"];
+    if (!expected) throw new Error("Admin dashboard is not configured. Set ADMIN_PASSWORD.");
+    if (data.password !== expected) throw new Error("Incorrect password");
+
+    const db = await admin();
+    const { data: row } = await db
+      .from("scores")
+      .select("id, profile_id, score, status")
+      .eq("id", data.scoreId)
+      .maybeSingle();
+    if (!row) throw new Error("Score not found");
+
+    await db
+      .from("scores")
+      .update({
+        status: data.status,
+        verified_at: data.status === "verified" ? new Date().toISOString() : null,
+      })
+      .eq("id", row.id);
+
+    // Rankings follow best_score, so rebuild it from the remaining verified scores.
+    const { data: verified } = await db
+      .from("scores")
+      .select("score")
+      .eq("profile_id", row.profile_id)
+      .eq("status", "verified")
+      .order("score", { ascending: false })
+      .limit(1);
+    await db
+      .from("profiles")
+      .update({ best_score: verified?.[0]?.score ?? 0, updated_at: new Date().toISOString() })
+      .eq("id", row.profile_id);
+
+    await db.from("admin_actions").insert({
+      action: `score:${data.status}`,
+      target_table: "scores",
+      target_id: row.id,
+      details: { previous_status: row.status, score: row.score, profile_id: row.profile_id },
+    });
+
+    return { ok: true, status: data.status };
   });
