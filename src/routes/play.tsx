@@ -6,7 +6,7 @@ import { SnakeGame } from "@/components/SnakeGame";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, ENTRY_ATTEMPTS, formatPrice } from "@/lib/config";
+import { BRAND, ENTRY_ATTEMPTS, ENTRY_BENEFITS, formatPrice } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import {
   getPendingChallenge,
@@ -22,6 +22,7 @@ import {
   startAttempt,
   startCheckout,
   submitScore,
+  verifyPayment,
 } from "@/lib/api.functions";
 
 export const Route = createFileRoute("/play")({
