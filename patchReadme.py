@@ -1,4 +1,9 @@
-# 90s Nokia Snake Challenge
+﻿import re
+
+with open('README.md', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+new_content = """# 90s Nokia Snake Challenge
 
 Build and deploy a production-ready, mobile-first viral web experience recreating the emotional experience of playing classic monochrome mobile Snake in the late 1990s, then combining that nostalgia with a modern social competition and friend-challenge loop.
 
@@ -51,3 +56,7 @@ To run with real data but without live payments:
 13. **Test score validation:** Ensure scores correctly submit and validate.
 14. **Deploy:** Deploy the application to your hosting provider (e.g., Vercel, Netlify, or Lovable).
 15. **Connect custom domain:** Link your custom domain to your deployment.
+"""
+
+with open('README.md', 'w', encoding='utf-8') as f:
+    f.write(new_content)

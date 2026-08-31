@@ -1,0 +1,19 @@
+﻿content = """# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Dodo Payments
+DODO_PAYMENTS_API_KEY=your-dodo-api-key
+DODO_PRODUCT_ID=your-dodo-product-id
+DODO_WEBHOOK_SECRET=your-dodo-webhook-secret
+
+# PostHog Analytics
+VITE_POSTHOG_KEY=your-posthog-key
+VITE_POSTHOG_HOST=https://us.i.posthog.com
+
+# Admin Dashboard
+ADMIN_PASSWORD=your-secure-password
+"""
+with open('.env.example', 'w', encoding='utf-8') as f:
+    f.write(content)
