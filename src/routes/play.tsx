@@ -61,6 +61,7 @@ function PlayPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
+  const [payFailed, setPayFailed] = useState(false);
 
   const fnEntry = useServerFn(getEntry);
   const fnCheckout = useServerFn(startCheckout);
@@ -68,6 +69,7 @@ function PlayPage() {
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
   const fnComplete = useServerFn(completeChallenge);
+  const fnVerify = useServerFn(verifyPayment);
 
   // Session recovery: a paid entry survives refresh, tab close and slow networks.
   useEffect(() => {
