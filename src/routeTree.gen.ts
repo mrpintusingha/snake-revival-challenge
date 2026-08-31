@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlayRouteImport } from './routes/play'
 import { Route as ApiPublicWebhooksDodoRouteImport } from './routes/api/public/webhooks/dodo'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayRoute = PlayRouteImport.update({
+  id: '/play',
+  path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicWebhooksDodoRoute = ApiPublicWebhooksDodoRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicWebhooksDodoRoute = ApiPublicWebhooksDodoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/play': typeof PlayRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/play': typeof PlayRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/play': typeof PlayRoute
   '/api/public/webhooks/dodo': typeof ApiPublicWebhooksDodoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/webhooks/dodo'
+  fullPaths: '/' | '/play' | '/api/public/webhooks/dodo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/webhooks/dodo'
-  id: '__root__' | '/' | '/api/public/webhooks/dodo'
+  to: '/' | '/play' | '/api/public/webhooks/dodo'
+  id: '__root__' | '/' | '/play' | '/api/public/webhooks/dodo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PlayRoute: typeof PlayRoute
   ApiPublicWebhooksDodoRoute: typeof ApiPublicWebhooksDodoRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play': {
+      id: '/play'
+      path: '/play'
+      fullPath: '/play'
+      preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/webhooks/dodo': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PlayRoute: PlayRoute,
   ApiPublicWebhooksDodoRoute: ApiPublicWebhooksDodoRoute,
 }
 export const routeTree = rootRouteImport
