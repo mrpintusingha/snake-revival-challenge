@@ -83,6 +83,53 @@ function AdminPage() {
               <Metric label="Flagged scores" value={stats.flaggedCount} />
             </div>
 
+            <Section title="Revenue">
+              <Row left="Today" right={formatPrice(stats.revenueWindows.today)} when="" />
+              <Row left="Yesterday" right={formatPrice(stats.revenueWindows.yesterday)} when="" />
+              <Row left="Last 7 days" right={formatPrice(stats.revenueWindows.week)} when="" />
+              <Row left="Last 30 days" right={formatPrice(stats.revenueWindows.month)} when="" />
+              <Row left="All time" right={formatPrice(stats.revenueWindows.allTime)} when="" />
+              <Row left="Successful payments" right={String(stats.paymentCounts.succeeded)} when="" />
+              <Row left="Failed payments" right={String(stats.paymentCounts.failed)} when="" />
+              <Row left="Refunds" right={String(stats.paymentCounts.refunded)} when="" />
+              <Row
+                left="Revenue per paid player"
+                right={formatPrice(Number(stats.revenuePerPaidPlayer.toFixed(2)))}
+                when=""
+              />
+            </Section>
+
+            <Section title="Viral funnel">
+              {(
+                [
+                  ["Checkout started", stats.funnel.checkoutStarted],
+                  ["Payment completed", stats.funnel.paymentCompleted],
+                  ["Game started", stats.funnel.gameStarted],
+                  ["Game completed", stats.funnel.gameCompleted],
+                  ["Challenge created", stats.funnel.challengeCreated],
+                  ["Challenge opened", stats.funnel.challengeOpened],
+                  ["Friend checkout", stats.funnel.friendCheckout],
+                  ["Friend payment", stats.funnel.friendPayment],
+                ] as const
+              ).map(([label, value]) => {
+                const base = stats.funnel.checkoutStarted || 1;
+                return (
+                  <Row
+                    key={label}
+                    left={label}
+                    right={`${value} (${Math.round((value / base) * 100)}%)`}
+                    when=""
+                  />
+                );
+              })}
+              <Row
+                left="Viral coefficient"
+                right={stats.viralCoefficient.toFixed(2)}
+                when=""
+              />
+            </Section>
+
+
             <Section title="Recent payments">
               {stats.recentPayments.map((p) => (
                 <Row
