@@ -596,6 +596,7 @@ export const submitScore = createServerFn({ method: "POST" })
     return {
       score,
       best,
+      previousBest,
       isBest,
       status,
       tier,
