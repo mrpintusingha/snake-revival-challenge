@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Phone, PhoneRef } from "@/components/ui/Phone";
 import { useRef } from "react";
@@ -9,7 +9,7 @@ import { SnakeGame } from "@/components/game/SnakeGame";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, ENTRY_ATTEMPTS, formatPrice } from "@/lib/config";
+import { BRAND, ENTRY_ATTEMPTS, ENTRY_BENEFITS, formatPrice } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import {
   getPendingChallenge,
@@ -25,6 +25,7 @@ import {
   startAttempt,
   startCheckout,
   submitScore,
+  verifyPayment,
 } from "@/lib/api.functions";
 
 export const Route = createFileRoute("/play")({
@@ -53,7 +54,6 @@ type Battle = Awaited<ReturnType<typeof completeChallenge>>;
 const COUNTRIES = ["India", "United States", "United Kingdom", "Nigeria", "Brazil", "Indonesia", "Philippines", "Pakistan", "Bangladesh", "Germany", "Other"];
 
 function PlayPage() {
-  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("loading");
   const [nickname, setNickname] = useState("");
   const [country, setCountry] = useState("");
@@ -66,6 +66,7 @@ function PlayPage() {
   const [code, setCode] = useState<string | null>(null);
   const phoneRef = useRef<PhoneRef>(null);
   const [gameCanvas, setGameCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [payFailed, setPayFailed] = useState(false);
 
   const fnEntry = useServerFn(getEntry);
   const fnCheckout = useServerFn(startCheckout);
@@ -78,6 +79,7 @@ function PlayPage() {
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
   const fnComplete = useServerFn(completeChallenge);
+  const fnVerify = useServerFn(verifyPayment);
 
   // Session recovery: a paid entry survives refresh, tab close and slow networks.
   useEffect(() => {
@@ -93,9 +95,21 @@ function PlayPage() {
         }
         if (res.entry) {
           setAttemptsRemaining(res.entry.attempts_total - res.entry.attempts_used);
-          setPhase("entry");
-        } else {
-          setPhase("entry");
+        }
+        setPhase("entry");
+
+        // Coming back from checkout: confirm with the provider before trusting
+        // the redirect, and never lose an entry that was actually paid for.
+        if (!res.entry) {
+          const conf = await fnVerify({ data: { secret: getPlayerSecret() } });
+          if (cancelled) return;
+          if (conf.status === "paid") {
+            setAttemptsRemaining(conf.attemptsRemaining);
+            track("payment_completed", { mode: "provider" });
+          } else if (conf.status === "failed" || conf.status === "cancelled") {
+            setPayFailed(true);
+            track("payment_failed", { reason: conf.status });
+          }
         }
       } catch {
         if (!cancelled) setPhase("entry");
@@ -104,12 +118,7 @@ function PlayPage() {
     return () => {
       cancelled = true;
     };
-  }, [fnEntry]);
-
-  const [hasPaidEntry, setHasPaidEntry] = useState(false);
-  useEffect(() => {
-    setHasPaidEntry(attemptsRemaining > 0);
-  }, [attemptsRemaining]);
+  }, [fnEntry, fnVerify]);
 
   const beginAttempt = useCallback(async () => {
     setBusy(true);
@@ -121,7 +130,7 @@ function PlayPage() {
       setResult(null);
       setBattle(null);
       setPhase("transition");
-      track("game_started", { attempt: res.attemptNumber });
+      track("official_game_started", { attempt: res.attemptNumber });
       setTimeout(() => setPhase("game"), 1600);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start the game");
@@ -193,7 +202,7 @@ function PlayPage() {
 
   const onGameOver = useCallback(
     async (r: { score: number; foods: number; durationMs: number }) => {
-      track("game_completed", { score: r.score });
+      track("official_game_completed", { score: r.score });
       try {
         const res = await fnSubmit({
           data: {
@@ -206,6 +215,7 @@ function PlayPage() {
         setResult(res);
         setStoredProfileId(res.profileId);
         track("score_submitted", { score: res.score, rank: res.rankGlobal });
+        track(res.status === "verified" ? "score_verified" : "score_flagged", { score: res.score });
 
         const pending = getPendingChallenge();
         if (pending) {
@@ -299,6 +309,14 @@ function PlayPage() {
           <section className="text-center">
             <h1 className="text-xs tracking-[0.3em] text-muted-foreground uppercase">Your score</h1>
             <h2 className="font-mono text-6xl font-bold tabular-nums text-foreground mt-2">{score.toLocaleString()}</h2>
+            {result?.isBest && (
+              <div className="mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Previous best: {result.previousBest.toLocaleString()}
+                </p>
+                <p className="pixel mt-2 text-[11px] text-primary">NEW PERSONAL BEST 🎉</p>
+              </div>
+            )}
             {result && (
               <>
                 <h3 className="mt-4 pixel text-[11px] text-primary">GLOBAL #{result.rankGlobal}</h3>
@@ -384,10 +402,99 @@ function PlayPage() {
       </Shell>
     );
   }
+  // phase === "entry"
+  const paid = attemptsRemaining > 0;
+  return (
+    <Shell>
+      <div className="rise space-y-8 py-4">
+        {payFailed && (
+          <section className="border border-destructive/60 p-5 text-center">
+            <h2 className="pixel text-[10px] text-destructive">PAYMENT NOT COMPLETED</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Your game entry has not been charged.
+            </p>
+          </section>
+        )}
 
+        <section className="text-center">
+          <h1 className="pixel text-[12px] leading-[1.9] text-primary sm:text-[14px]">
+            {paid ? "YOU'RE IN" : "ENTER THE OFFICIAL CHALLENGE"}
+          </h1>
+          {paid ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {attemptsRemaining} official {attemptsRemaining === 1 ? "attempt" : "attempts"} left.
+              Keep your best score.
+            </p>
+          ) : (
+            <>
+              <p className="mt-5 font-mono text-5xl font-bold tabular-nums">{formatPrice()}</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {ENTRY_ATTEMPTS} official attempts. Keep your best score.
+              </p>
+            </>
+          )}
+        </section>
 
+        {!paid && (
+          <ul className="mx-auto w-fit space-y-2 text-sm text-muted-foreground">
+            {ENTRY_BENEFITS.map((b) => (
+              <li key={b}>
+                <span className="text-primary">✓</span> {b}
+              </li>
+            ))}
+          </ul>
+        )}
 
-  return null;
+        {!paid && (
+          <section className="space-y-3">
+            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              Nickname
+              <input
+                value={nickname}
+                maxLength={18}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="PINTU"
+                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+              />
+            </label>
+            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              Country
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+              >
+                <option value="">Prefer not to say</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+        )}
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            track("challenge_cta_clicked");
+            void (paid ? beginAttempt() : pay());
+          }}
+          className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? "One moment…" : paid ? "Start official attempt" : payFailed ? "Try again" : BRAND.payCta}
+        </button>
+
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          {BRAND.legal}
+          <br />
+          {BRAND.disclaimer}
+        </p>
+      </div>
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
