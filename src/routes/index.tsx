@@ -61,7 +61,7 @@ function Landing() {
           <p className="mt-6 text-2xl font-bold sm:text-3xl">{BRAND.tagline1}</p>
           <p className="text-2xl font-bold text-primary sm:text-3xl">{BRAND.tagline2}</p>
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-            The classic mobile Snake experience, rebuilt for the 90s generation.
+            Remember when this could keep you busy for hours? The classic mobile Snake experience, rebuilt for the 90s generation.
           </p>
         </section>
 

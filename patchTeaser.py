@@ -1,58 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { LcdScreen, type Overlay } from "./LcdScreen";
-import { autopilot, createState, step, tickFor, turn, type SnakeState } from "@/lib/snake-engine";
+﻿import re
 
-/**
- * Non-interactive ~8s nostalgia loop. Visitors cannot control the snake:
- * the first real game happens only after payment.
- */
-export function SnakeTeaser() {
-  const [, force] = useState(0);
-  const stateRef = useRef<SnakeState>(createState(20250101));
-  const [overlay, setOverlay] = useState<Overlay>(null);
+path = 'src/components/SnakeTeaser.tsx'
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-  useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-    let acc = 0;
-    let endAt = 0;
-
-    const loop = (now: number) => {
-      raf = requestAnimationFrame(loop);
-      const dt = now - last;
-      last = now;
-
-      if (endAt) {
-        if (now >= endAt) {
-          stateRef.current = createState(Math.floor(Math.random() * 1e9));
-          setOverlay(null);
-          endAt = 0;
-        }
-        force((n) => n + 1);
-        return;
-      }
-
-      acc += dt;
-      const s = stateRef.current;
-      const tick = Math.max(90, tickFor(s));
-      while (acc >= tick) {
-        acc -= tick;
-        turn(s, autopilot(s));
-        step(s);
-        if (s.over || s.foods >= 9) {
-          setOverlay({ lines: ["WHO'S STILL GOT IT?"] });
-          endAt = now + 2200;
-          break;
-        }
-      }
-      force((n) => n + 1);
-    };
-
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-
+new_return = '''
   return (
     <div className="relative mx-auto w-full max-w-[320px] rounded-[2rem] bg-zinc-900 p-4 pb-8 shadow-2xl border-4 border-zinc-800 scale-90 sm:scale-100 origin-top">
       <div className="mx-auto mb-6 h-1.5 w-16 rounded-full bg-black shadow-inner"></div>
@@ -67,7 +19,7 @@ export function SnakeTeaser() {
         <span className="text-[9px] font-bold tracking-widest text-zinc-500">CLASSIC</span>
       </div>
 
-            <div className="mt-8 grid grid-cols-3 grid-rows-3 gap-2 select-none px-6 opacity-80 pointer-events-none">
+      <div className="mt-8 grid grid-cols-3 grid-rows-3 gap-2 select-none px-6 opacity-80 pointer-events-none">
         <div />
         <div className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 shadow-md">▲</div>
         <div />
@@ -82,5 +34,10 @@ export function SnakeTeaser() {
       </div>
     </div>
   );
+'''
 
-}
+# replace the return statement
+content = re.sub(r'  return <LcdScreen.*?;', new_return, content, flags=re.DOTALL)
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(content)

@@ -235,228 +235,118 @@ function PlayPage() {
     );
   }
 
-  if (phase === "result") {
+    if (phase === "result") {
     const score = result?.score ?? 0;
     const url = code ? challengeUrl(code) : typeof window !== "undefined" ? window.location.origin : "";
     return (
       <Shell>
         <div className="rise space-y-8 py-6">
           {battle && (
-            <section className="border border-border p-5 text-center">
+            <section className="border border-border p-5 text-center bg-zinc-900/50">
               <h2 className="pixel text-[10px] text-primary">THE BATTLE</h2>
-              <div className="mt-4 space-y-1 font-mono text-lg">
+              <div className="mt-4 space-y-1 font-mono text-lg text-zinc-300">
                 <p>
                   {battle.opponentName} — {battle.opponentScore.toLocaleString()}
                 </p>
-                <p>
+                <p className="text-primary">
                   {battle.yourName} — {battle.yourScore.toLocaleString()}
                 </p>
               </div>
-              <p className="mt-4 text-base font-bold">
+              <p className="mt-4 text-base font-bold text-zinc-100">
                 {battle.youWon
                   ? "👑 YOU TOOK THE CROWN"
-                  : `🐍 ${battle.opponentName.toUpperCase()} STILL HAS THE CROWN`}
+                  : 🐍  STILL HAS THE CROWN}
               </p>
             </section>
           )}
 
           <section className="text-center">
-            <p className="text-xs tracking-[0.3em] text-muted-foreground uppercase">Your score</p>
-            <p className="font-mono text-6xl font-bold tabular-nums">{score.toLocaleString()}</p>
+            <h1 className="text-xs tracking-[0.3em] text-muted-foreground uppercase">Your score</h1>
+            <h2 className="font-mono text-6xl font-bold tabular-nums text-foreground mt-2">{score.toLocaleString()}</h2>
             {result && (
               <>
-                <p className="mt-4 pixel text-[11px] text-primary">GLOBAL #{result.rankGlobal}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
+                <h3 className="mt-4 pixel text-[11px] text-primary">GLOBAL #{result.rankGlobal}</h3>
+                <h3 className="mt-2 text-sm text-muted-foreground">
                   You beat {result.percentile}% of players.
-                </p>
-                <div className="mt-5 flex justify-center gap-5 text-sm">
-                  <span>🌎 Global: #{result.rankGlobal}</span>
+                </h3>
+                <div className="mt-5 flex justify-center gap-5 text-sm text-zinc-400">
+                  <span>🌍 Global: #{result.rankGlobal}</span>
                   {result.rankCountry && (
                     <span>
-                      🏳️ {result.country}: #{result.rankCountry}
+                      🏳️‍🌈 {result.country}: #{result.rankCountry}
                     </span>
                   )}
                 </div>
                 <p className="pixel mt-6 text-[12px] text-primary">{result.tier.toUpperCase()}</p>
                 {result.status !== "verified" && (
                   <p className="mt-3 text-xs text-destructive">
-                    This score was flagged for review and won&apos;t enter the leaderboard.
+                    This score was flagged for review and won't enter the leaderboard.
                   </p>
                 )}
               </>
             )}
           </section>
 
-          <section className="space-y-3">
-            <p className="text-center text-lg font-bold">😈 CAN YOUR FRIEND BEAT YOU?</p>
+          <section className="space-y-4 pt-4 border-t border-border">
+            <p className="text-center text-xl sm:text-2xl font-bold leading-tight">
+              😈 WHO WAS BETTER AT SNAKE — YOU OR YOUR FRIENDS?
+            </p>
             {!code ? (
               <button
                 type="button"
                 disabled={busy}
                 onClick={makeChallenge}
-                className="w-full rounded bg-primary px-6 py-4 text-sm font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
+                className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90 active:scale-[0.98] transition-all"
               >
                 Challenge a friend
               </button>
             ) : (
-              <>
+              <div className="space-y-4">
                 <ShareRow text={challengeShareText(score, url)} url={url} />
-                <p className="text-center font-mono text-xs break-all text-muted-foreground">{url}</p>
-              </>
-            )}
-            {code && (
-              <ShareRow text={scoreShareText(score, result?.percentile ?? 0, url)} url={url} />
+                <p className="text-center font-mono text-xs break-all text-muted-foreground bg-zinc-900/50 p-3 rounded">{url}</p>
+              </div>
             )}
           </section>
 
           {code && result && (
-            <ScoreCard
-              score={score}
-              rank={result.rankGlobal}
-              nickname={result.nickname}
-              tier={result.tier}
-            />
+            <div className="pt-4">
+              <ScoreCard
+                score={score}
+                rank={result.rankGlobal}
+                nickname={result.nickname}
+                tier={result.tier}
+              />
+            </div>
           )}
 
-          <section className="space-y-3">
+          <section className="space-y-3 pt-4 border-t border-border">
             {attemptsRemaining > 0 ? (
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => {
                   track("repeat_attempt");
-                  void beginAttempt();
+                  setPhase("transition");
+                  setResult(null);
+                  setCode(null);
+                  setAttemptNumber((n) => n + 1);
                 }}
-                className="w-full rounded border border-primary px-6 py-4 text-sm font-bold tracking-wide text-primary uppercase"
+                className="w-full rounded border border-border px-6 py-5 text-sm font-bold tracking-wide uppercase hover:bg-accent"
               >
-                Play again — {attemptsRemaining} attempt{attemptsRemaining === 1 ? "" : "s"} left
+                Remember how you always wanted one more try? ({attemptsRemaining} left)
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setPhase("entry")}
-                className="w-full rounded border border-primary px-6 py-4 text-sm font-bold tracking-wide text-primary uppercase"
+              <Link
+                to="/leaderboard"
+                className="block w-full rounded border border-border px-6 py-4 text-center text-sm font-bold tracking-wide uppercase hover:bg-accent"
               >
-                Enter again — {formatPrice()}
-              </button>
+                See final leaderboard
+              </Link>
             )}
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/leaderboard" })}
-              className="w-full rounded border border-border px-6 py-4 text-sm tracking-wide uppercase"
-            >
-              See the leaderboard
-            </button>
           </section>
         </div>
       </Shell>
     );
   }
 
-  // entry / payment screen
-  return (
-    <Shell>
-      <div className="rise mx-auto max-w-md space-y-6 py-6">
-        <div className="text-center">
-          <div className="text-4xl" aria-hidden>
-            🐍
-          </div>
-          <h1 className="pixel mt-5 text-[11px] leading-[1.9] text-primary sm:text-sm">
-            ENTER THE OFFICIAL CHALLENGE
-          </h1>
-          <p className="mt-5 font-mono text-5xl font-bold">{formatPrice()}</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {ENTRY_ATTEMPTS} official attempts. Keep your best score.
-          </p>
-        </div>
 
-        <ul className="space-y-2 border-y border-border py-5 text-sm">
-          <li>✓ Global leaderboard</li>
-          <li>✓ Personal best</li>
-          <li>✓ Friend challenges</li>
-          <li>✓ Shareable score</li>
-          <li>✓ {ENTRY_ATTEMPTS} official attempts</li>
-        </ul>
-
-        <div className="space-y-3">
-          <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
-            Your name
-            <input
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={18}
-              placeholder="Nickname"
-              className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
-            />
-          </label>
-          <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
-            Country (optional)
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
-            >
-              <option value="">Prefer not to say</option>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        {hasPaidEntry ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={beginAttempt}
-            className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
-          >
-            Start official game — {attemptsRemaining} left
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={pay}
-            className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
-          >
-            {busy ? "Opening checkout…" : BRAND.payCta}
-          </button>
-        )}
-
-        <p className="text-center text-xs text-muted-foreground">
-          Paid entry, not gambling. No prizes, no payouts — just bragging rights.
-        </p>
-
-        {getPendingChallenge() && (
-          <button
-            type="button"
-            onClick={() => {
-              setPendingChallenge(null);
-              location.reload();
-            }}
-            className="w-full text-center text-xs text-muted-foreground underline"
-          >
-            Playing a friend&apos;s challenge — clear it
-          </button>
-        )}
-
-        <Link to="/leaderboard" className="block text-center text-xs text-muted-foreground underline">
-          See who&apos;s still got it
-        </Link>
-      </div>
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen">
-      <Header />
-      <main className="mx-auto w-full max-w-3xl px-5">{children}</main>
-      <Footer />
-    </div>
-  );
-}

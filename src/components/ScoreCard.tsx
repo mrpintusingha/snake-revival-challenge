@@ -47,7 +47,7 @@ export function ScoreCard({
     ctx.fillStyle = ink;
     ctx.textAlign = "center";
     ctx.font = "bold 44px monospace";
-    ctx.fillText("90s SNAKE CHALLENGE", S / 2, 160);
+    ctx.fillText("90s SNAKE", S / 2, 160);
 
     ctx.font = "120px serif";
     ctx.fillText("🐍", S / 2, 320);

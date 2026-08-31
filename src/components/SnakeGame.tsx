@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LcdScreen, type Overlay } from "./LcdScreen";
 import { createState, step, tickFor, turn, type Dir, type SnakeState } from "@/lib/snake-engine";
+import { audio } from "@/lib/audio";
+import { Volume2, VolumeX } from "lucide-react";
 
 type Props = {
   attemptNumber: number;
@@ -11,10 +13,40 @@ type Props = {
 export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
-  const [phase, setPhase] = useState<"countdown" | "playing" | "over">("countdown");
+  const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
   const [count, setCount] = useState(3);
   const startedAt = useRef(0);
   const finished = useRef(false);
+  const [soundEnabled, setSoundEnabled] = useState(audio.enabled);
+
+  const toggleSound = () => {
+    audio.enabled = !audio.enabled;
+    setSoundEnabled(audio.enabled);
+    if (audio.enabled) audio.init();
+  };
+
+  useEffect(() => {
+    audio.init();
+  }, []);
+
+  // Startup: 90s SNAKE -> READY -> Countdown
+  useEffect(() => {
+    if (phase !== "startup") return;
+    
+    // Play startup sound after a short delay
+    const initTimer = setTimeout(() => {
+      audio.startup();
+    }, 500);
+
+    const timer = setTimeout(() => {
+      setPhase("countdown");
+    }, 2000);
+
+    return () => {
+      clearTimeout(initTimer);
+      clearTimeout(timer);
+    };
+  }, [phase]);
 
   // Countdown: 3 - 2 - 1 - GO
   useEffect(() => {
@@ -49,28 +81,55 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Prop
       let guard = 0;
       while (acc >= tick && !s.over && guard++ < 4) {
         acc -= tick;
-        step(s);
+        const previousScore = s.score;
+        const ate = step(s);
+        if (ate) {
+          if (s.score > previousScore && s.score % 500 === 0 && previousScore > 0) {
+            audio.milestone();
+          } else {
+            audio.eat();
+          }
+        }
       }
       if (s.over && !finished.current) {
         finished.current = true;
         cancelAnimationFrame(raf);
+        audio.die();
         setPhase("over");
-        onGameOver({
-          score: s.score,
-          foods: s.foods,
-          durationMs: Math.round(now - startedAt.current),
-        });
+        
+        // Wait briefly before allowing the user to press any key
+        setTimeout(() => {
+          setPhase("awaiting-continue");
+        }, 1200);
       }
       force((n) => n + 1);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
+  }, [phase]);
+
+  const triggerGameOverTransition = useCallback(() => {
+    setPhase("submitting");
+    if (phase !== "awaiting-continue") return;
+    audio.uiClick();
+    const s = stateRef.current;
+    onGameOver({
+      score: s.score,
+      foods: s.foods,
+      durationMs: Math.round(performance.now() - startedAt.current),
+    });
   }, [phase, onGameOver]);
 
   const input = useCallback((dir: Dir) => {
+    if (phase === "awaiting-continue") {
+      triggerGameOverTransition();
+      return;
+    }
+    if (phase !== "playing") return;
     if (stateRef.current.over) return;
+    audio.buttonClick();
     turn(stateRef.current, dir);
-  }, []);
+  }, [phase, triggerGameOverTransition]);
 
   // Keyboard
   useEffect(() => {
@@ -89,6 +148,12 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Prop
       D: "right",
     };
     const onKey = (e: KeyboardEvent) => {
+      if (phase === "awaiting-continue") {
+        e.preventDefault();
+        triggerGameOverTransition();
+        return;
+      }
+      
       const dir = keys[e.key];
       if (!dir) return;
       e.preventDefault();
@@ -96,15 +161,21 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Prop
     };
     window.addEventListener("keydown", onKey, { passive: false });
     return () => window.removeEventListener("keydown", onKey);
-  }, [input]);
+  }, [input, phase, triggerGameOverTransition]);
 
   // Swipe
   const touch = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
+    if (phase === "awaiting-continue") {
+      e.preventDefault();
+      triggerGameOverTransition();
+      return;
+    }
     const t = e.touches[0];
     if (t) touch.current = { x: t.clientX, y: t.clientY };
   };
   const onTouchMove = (e: React.TouchEvent) => {
+    if (phase === "awaiting-continue") return;
     e.preventDefault();
     const start = touch.current;
     const t = e.touches[0];
@@ -117,40 +188,65 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Prop
   };
 
   const overlay: Overlay =
-    phase === "countdown"
-      ? { big: count === 0 ? "GO" : String(count), lines: [] }
-      : phase === "over"
-        ? { lines: ["GAME OVER", `SCORE ${stateRef.current.score}`] }
-        : null;
+    phase === "startup"
+      ? { lines: ["90s SNAKE", "", "READY"] }
+      : phase === "countdown"
+        ? { big: count === 0 ? "GO" : String(count), lines: [] }
+        : phase === "over" || phase === "awaiting-continue" || phase === "submitting"
+          ? { lines: ["GAME OVER", "", "SCORE", String(stateRef.current.score), "", (phase === "awaiting-continue" || phase === "submitting") ? (phase === "submitting" ? "LOADING..." : "PRESS ANY KEY") : ""] }
+          : null;
 
   return (
     <div className="no-touch-scroll flex w-full flex-col items-center gap-4">
-      <div className="flex w-full max-w-[420px] items-center justify-between text-[10px] tracking-widest text-muted-foreground uppercase">
+      <div className="flex w-full max-w-[320px] items-center justify-between text-[10px] tracking-widest text-muted-foreground uppercase">
         <span>Attempt {attemptNumber} of 3</span>
         <span>Attempts remaining: {attemptsRemaining}</span>
       </div>
 
-      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} className="w-full max-w-[420px]">
-        <LcdScreen state={stateRef.current} overlay={overlay} />
+      {/* 90s Phone Frame */}
+      <div className="relative mx-auto w-full max-w-[320px] rounded-[2rem] bg-zinc-900 p-4 pb-8 shadow-2xl border-4 border-zinc-800">
+        {/* Speaker */}
+        <div className="mx-auto mb-6 h-1.5 w-16 rounded-full bg-black shadow-inner"></div>
+        
+        {/* Screen Bezel */}
+        <div className="rounded-lg bg-zinc-950 p-3 shadow-inner ring-1 ring-zinc-800 ring-offset-1 ring-offset-zinc-900">
+          <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} className="w-full cursor-pointer">
+            <LcdScreen state={stateRef.current} overlay={overlay} className="shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]" />
+          </div>
+        </div>
+
+        {/* Brand / Details */}
+        <div className="mt-4 flex items-center justify-between px-2">
+          <span className="text-[9px] font-bold tracking-widest text-zinc-500">CLASSIC</span>
+          <button 
+            type="button"
+            onClick={toggleSound}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Toggle sound"
+          >
+            {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
+        </div>
+
+        {/* Physical-style D-Pad */}
+                <div className="mt-8 grid grid-cols-3 grid-rows-3 gap-2 select-none px-6">
+          <div />
+          <PadButton label="▲" onPress={() => input("up")} />
+          <div />
+          <PadButton label="◀" onPress={() => input("left")} />
+          <div className="flex items-center justify-center">
+             <div className="h-4 w-4 rounded-full bg-zinc-800 shadow-inner" />
+          </div>
+          <PadButton label="▶" onPress={() => input("right")} />
+          <div />
+          <PadButton label="▼" onPress={() => input("down")} />
+          <div />
+        </div>
       </div>
 
-      <p className="hidden text-center text-xs text-muted-foreground sm:block">
-        Arrow keys or WASD
+      <p className="text-center text-xs text-muted-foreground mt-4">
+        Use arrows, WASD, or tap the keypad
       </p>
-
-      {/* Large touch pad — mobile first */}
-      <div className="grid w-full max-w-[260px] grid-cols-3 grid-rows-3 gap-2 select-none sm:hidden">
-        <div />
-        <PadButton label="▲" onPress={() => input("up")} />
-        <div />
-        <PadButton label="◀" onPress={() => input("left")} />
-        <div />
-        <PadButton label="▶" onPress={() => input("right")} />
-        <div />
-        <PadButton label="▼" onPress={() => input("down")} />
-        <div />
-      </div>
-      <p className="text-center text-xs text-muted-foreground sm:hidden">Swipe or tap to steer</p>
     </div>
   );
 }
@@ -164,7 +260,7 @@ function PadButton({ label, onPress }: { label: string; onPress: () => void }) {
         e.preventDefault();
         onPress();
       }}
-      className="flex h-16 items-center justify-center rounded border border-border bg-secondary text-lg text-foreground active:bg-accent"
+      className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 active:translate-y-1 active:border-b-0 active:mt-1 shadow-md"
     >
       {label}
     </button>
