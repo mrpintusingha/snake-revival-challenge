@@ -255,7 +255,7 @@ function PlayPage() {
               <p className="mt-4 text-base font-bold text-zinc-100">
                 {battle.youWon
                   ? "👑 YOU TOOK THE CROWN"
-                  : 🐍  STILL HAS THE CROWN}
+                  : `🐍 ${battle.opponentName} STILL HAS THE CROWN`}
               </p>
             </section>
           )}
