@@ -484,7 +484,9 @@ export const submitScore = createServerFn({ method: "POST" })
     const foods = Math.min(data.foods, MAX_FOODS);
     const score = scoreForFoods(foods);
     const elapsed = Date.now() - new Date(session.started_at).getTime();
+    const expired = elapsed > MAX_SESSION_DURATION_MS;
     const plausible =
+      !expired &&
       data.durationMs >= foods * MIN_MS_PER_FOOD &&
       elapsed >= foods * MIN_MS_PER_FOOD * 0.7 &&
       data.reportedScore === score;
@@ -495,18 +497,23 @@ export const submitScore = createServerFn({ method: "POST" })
       .update({
         ended_at: new Date().toISOString(),
         score,
-        status: "completed",
+        status: expired ? "expired" : "completed",
         verified: plausible,
+        verification_status: status,
       })
       .eq("id", session.id);
 
-    await db.from("scores").insert({
-      profile_id: playerId,
-      game_session_id: session.id,
-      score,
-      status,
-      verified_at: plausible ? new Date().toISOString() : null,
-    });
+    const { data: scoreRow } = await db
+      .from("scores")
+      .insert({
+        profile_id: playerId,
+        game_session_id: session.id,
+        score,
+        status,
+        verified_at: plausible ? new Date().toISOString() : null,
+      })
+      .select("id")
+      .single();
 
     const { data: profile } = await db
       .from("profiles")
