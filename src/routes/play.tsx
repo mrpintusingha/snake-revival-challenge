@@ -235,7 +235,7 @@ function PlayPage() {
     );
   }
 
-    if (phase === "result") {
+  if (phase === "result") {
     const score = result?.score ?? 0;
     const url = code ? challengeUrl(code) : typeof window !== "undefined" ? window.location.origin : "";
     return (
@@ -255,7 +255,7 @@ function PlayPage() {
               <p className="mt-4 text-base font-bold text-zinc-100">
                 {battle.youWon
                   ? "👑 YOU TOOK THE CROWN"
-                  : 🐍  STILL HAS THE CROWN}
+                  : `🐍 ${battle.opponentName} STILL HAS THE CROWN`}
               </p>
             </section>
           )}
@@ -350,3 +350,16 @@ function PlayPage() {
   }
 
 
+
+  return null;
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8">{children}</main>
+      <Footer />
+    </div>
+  );
+}
