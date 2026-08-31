@@ -1,0 +1,99 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+/**
+ * Dodo Payments webhook (Standard Webhooks signature scheme).
+ * Idempotent: a repeated event for an already-succeeded payment is a no-op.
+ */
+export const Route = createFileRoute("/api/public/webhooks/dodo")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const secret = process.env["DODO_WEBHOOK_SECRET"];
+        if (!secret) return new Response("Webhook not configured", { status: 503 });
+
+        const body = await request.text();
+        const id = request.headers.get("webhook-id") ?? "";
+        const timestamp = request.headers.get("webhook-timestamp") ?? "";
+        const signatureHeader = request.headers.get("webhook-signature") ?? "";
+
+        if (!id || !timestamp || !signatureHeader) {
+          return new Response("Missing signature headers", { status: 401 });
+        }
+        // Reject replays older than 5 minutes.
+        if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+          return new Response("Stale webhook", { status: 401 });
+        }
+
+        const keyBytes = secret.startsWith("whsec_")
+          ? Uint8Array.from(atob(secret.slice(6)), (c) => c.charCodeAt(0))
+          : new TextEncoder().encode(secret);
+        const key = await crypto.subtle.importKey(
+          "raw",
+          keyBytes,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"],
+        );
+        const mac = await crypto.subtle.sign(
+          "HMAC",
+          key,
+          new TextEncoder().encode(`${id}.${timestamp}.${body}`),
+        );
+        const expected = btoa(String.fromCharCode(...new Uint8Array(mac)));
+
+        const provided = signatureHeader.split(" ").map((p) => p.split(",").pop() ?? "");
+        const valid = provided.some(
+          (sig) =>
+            sig.length === expected.length &&
+            sig.split("").reduce((acc, c, i) => acc | (c.charCodeAt(0) ^ expected.charCodeAt(i)), 0) === 0,
+        );
+        if (!valid) return new Response("Invalid signature", { status: 401 });
+
+        type Payload = {
+          type?: string;
+          data?: {
+            payment_id?: string;
+            status?: string;
+            metadata?: Record<string, string>;
+            total_amount?: number;
+            currency?: string;
+          };
+        };
+        const event = JSON.parse(body) as Payload;
+        const ourId = event.data?.metadata?.["payment_id"];
+        if (!ourId) return new Response("ok (no reference)", { status: 200 });
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: payment } = await supabaseAdmin
+          .from("payments")
+          .select("id, status")
+          .eq("id", ourId)
+          .maybeSingle();
+        if (!payment) return new Response("ok (unknown payment)", { status: 200 });
+        if (payment.status === "succeeded") return new Response("ok (already processed)", { status: 200 });
+
+        const succeeded =
+          event.type === "payment.succeeded" || event.data?.status === "succeeded";
+        const failed = event.type === "payment.failed" || event.data?.status === "failed";
+
+        if (succeeded) {
+          await supabaseAdmin
+            .from("payments")
+            .update({
+              status: "succeeded",
+              provider_payment_id: event.data?.payment_id ?? null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", payment.id);
+        } else if (failed) {
+          await supabaseAdmin
+            .from("payments")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", payment.id);
+        }
+
+        return new Response("ok", { status: 200 });
+      },
+    },
+  },
+});
