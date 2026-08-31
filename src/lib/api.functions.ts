@@ -206,10 +206,14 @@ export const getChallenge = createServerFn({ method: "GET" })
     const db = await publicDb();
     const { data: ch } = await db
       .from("challenges")
-      .select("id, challenge_code, challenger_score, challenger_id, accepted_by, accepted_score, created_at")
+      .select(
+        "id, challenge_code, challenger_score, challenger_id, accepted_by, accepted_score, created_at, expires_at, status",
+      )
       .eq("challenge_code", data.code.toUpperCase())
       .maybeSingle();
     if (!ch) return null;
+    // Expired links are treated as missing so the page shows the friendly state.
+    if (ch.expires_at && new Date(ch.expires_at as string).getTime() < Date.now()) return null;
     const { data: challenger } = await db
       .from("profiles")
       .select("id, nickname, country, best_score")
