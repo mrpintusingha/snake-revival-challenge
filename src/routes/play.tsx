@@ -138,7 +138,7 @@ function PlayPage() {
           returnUrl: `${window.location.origin}/play`,
         },
       });
-      setStoredProfileId(res.profileId);
+      if (res.profileId) setStoredProfileId(res.profileId);
       if (res.mode === "redirect") {
         window.location.href = res.url;
         return;
