@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { COLS, ROWS, type SnakeState } from "@/lib/snake-engine";
 
 const CELL = 8; // logical pixels per grid cell
-const HEADER = 12; // status strip height, like the old handset display
+const HEADER = 14; // status strip height, like the old handset display
 const PAD = 2;
 const W = COLS * CELL + PAD * 2;
 const H = ROWS * CELL + HEADER + PAD * 2;
@@ -48,14 +48,14 @@ export function LcdScreen({
 
     // Status strip
     ctx.globalAlpha = 0.18;
-    ctx.fillRect(0, HEADER - 1, W, 1);
+    ctx.fillRect(0, HEADER - 2, W, 1);
     ctx.globalAlpha = 1;
     ctx.font = "9px monospace";
-    ctx.textBaseline = "middle";
+    ctx.textBaseline = "top";
     ctx.textAlign = "left";
-    ctx.fillText("SNAKE", PAD + 1, HEADER / 2 + 1);
+    ctx.fillText("SNAKE", PAD + 1, PAD + 1);
     ctx.textAlign = "right";
-    ctx.fillText(String(state?.score ?? 0).padStart(4, "0"), W - PAD - 1, HEADER / 2 + 1);
+    ctx.fillText(String(state?.score ?? 0).padStart(4, "0"), W - PAD - 1, PAD + 1);
 
     const ox = PAD;
     const oy = HEADER + PAD;
