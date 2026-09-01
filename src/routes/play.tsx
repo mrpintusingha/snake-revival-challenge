@@ -213,7 +213,7 @@ function PlayPage() {
           track("friend_game_completed", { won: b?.youWon });
         }
         
-        if (res.attemptsRemaining <= 0) {
+        if (attemptsRemaining <= 0) {
           setPhase("result");
         } else {
           setAttemptNumber((n) => n + 1);
@@ -225,7 +225,7 @@ function PlayPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fnSubmit, fnComplete, sessionToken],
+    [fnSubmit, fnComplete, sessionToken, attemptsRemaining, beginAttempt],
   );
 
   const makeChallenge = async () => {
