@@ -34,10 +34,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@babel/code-frame": "^7.29.7",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "^2.15.0",
-    "@tanstack/start-plugin-core": "^1.171.39",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -52,6 +50,6 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^8.1.5"
+    "vite": "8.1.5"
   }
 }
