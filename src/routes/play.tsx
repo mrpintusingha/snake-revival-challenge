@@ -164,32 +164,6 @@ function PlayPage() {
       }
       track("payment_completed", { mode: "test" });
       setAttemptsRemaining(ENTRY_ATTEMPTS);
-  const handleGameOver = useCallback(
-    async (result: { score: number; foods: number; durationMs: number }) => {
-      if (busy) return;
-      setBusy(true);
-      try {
-        const res = await fnSubmit({
-          data: {
-            sessionToken,
-            score: result.score,
-            foods: result.foods,
-            durationMs: result.durationMs,
-            attempt: attemptNumber,
-          },
-        });
-        setResult(res);
-        setPhase("result");
-        track("game_over", { score: result.score, rank: res.rankGlobal, tier: res.tier });
-      } catch (e) {
-        toast.error((e as Error).message ?? "An error occurred.");
-        setPhase("entry");
-      } finally {
-        setBusy(false);
-      }
-    },
-    [busy, fnSubmit, sessionToken, attemptNumber],
-  );
       toast.success("Entry unlocked");
       await beginAttempt();
     } catch (e) {
