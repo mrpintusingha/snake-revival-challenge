@@ -63,39 +63,79 @@ const nicknameSchema = z
 
 /* ------------------------------------------------------- public read data */
 
+let homeDataCache: { data: any; expiresAt: number } | null = null;
+let homeDataPromise: Promise<any> | null = null;
+
 export const getHomeData = createServerFn({ method: "GET" }).handler(async () => {
-  const db = await publicDb();
-  const since = new Date(Date.now() - 86400000).toISOString();
+  const TTL = 60 * 1000; // 60 seconds
+  const now = Date.now();
 
-  const [players, top, challengesToday, activity, board, recentPlayers] = await Promise.all([
-    db.from("profiles").select("id", { count: "exact", head: true }),
-    db.from("profiles").select("best_score").order("best_score", { ascending: false }).limit(1),
-    db.from("challenges").select("id", { count: "exact", head: true }).gte("created_at", since),
-    db
-      .from("activity_events")
-      .select("id, event_type, metadata, created_at")
-      .order("created_at", { ascending: false })
-      .limit(12),
-    db
-      .from("profiles")
-      .select("id, nickname, country, best_score")
-      .gt("best_score", 0)
-      .order("best_score", { ascending: false })
-      .limit(5),
-    db
-      .from("scores")
-      .select("profile_id", { count: "exact", head: true })
-      .gte("created_at", new Date(Date.now() - 900000).toISOString()),
-  ]);
+  // 1. Return warm cache if valid
+  if (homeDataCache && now < homeDataCache.expiresAt) {
+    return homeDataCache.data;
+  }
 
-  return {
-    players: players.count ?? 0,
-    topScore: top.data?.[0]?.best_score ?? 0,
-    challengesToday: challengesToday.count ?? 0,
-    playingNow: recentPlayers.count ?? 0,
-    activity: activity.data ?? [],
-    leaderboard: board.data ?? [],
-  };
+  // 2. Prevent cache stampede by joining existing inflight promise
+  if (homeDataPromise) {
+    return homeDataPromise;
+  }
+
+  // 3. Fetch data, handling graceful fallback on failure
+  homeDataPromise = (async () => {
+    try {
+      const db = await publicDb();
+      const since = new Date(Date.now() - 86400000).toISOString();
+
+      const [players, top, challengesToday, activity, board, recentPlayers] = await Promise.all([
+        db.from("profiles").select("id", { count: "estimated", head: true }),
+        db.from("profiles").select("best_score").order("best_score", { ascending: false }).limit(1),
+        db.from("challenges").select("id", { count: "exact", head: true }).gte("created_at", since),
+        db
+          .from("activity_events")
+          .select("id, event_type, metadata, created_at")
+          .order("created_at", { ascending: false })
+          .limit(12),
+        db
+          .from("profiles")
+          .select("id, nickname, country, best_score")
+          .gt("best_score", 0)
+          .order("best_score", { ascending: false })
+          .limit(5),
+        db
+          .from("scores")
+          .select("profile_id", { count: "exact", head: true })
+          .gte("created_at", new Date(Date.now() - 900000).toISOString()),
+      ]);
+
+      const data = {
+        players: players.count ?? 0,
+        topScore: top.data?.[0]?.best_score ?? 0,
+        challengesToday: challengesToday.count ?? 0,
+        playingNow: recentPlayers.count ?? 0,
+        activity: activity.data ?? [],
+        leaderboard: board.data ?? [],
+      };
+
+      homeDataCache = { data, expiresAt: Date.now() + TTL };
+      return data;
+    } catch (e) {
+      console.error("[getHomeData] Failed to fetch homepage data", e);
+      // Fallback: serve stale cache if available, otherwise empty skeleton
+      if (homeDataCache) return homeDataCache.data;
+      return {
+        players: 0,
+        topScore: 0,
+        challengesToday: 0,
+        playingNow: 0,
+        activity: [],
+        leaderboard: [],
+      };
+    } finally {
+      homeDataPromise = null; // Clear inflight promise lock
+    }
+  })();
+
+  return homeDataPromise;
 });
 
 export const getLeaderboard = createServerFn({ method: "GET" })
