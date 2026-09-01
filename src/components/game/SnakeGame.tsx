@@ -7,6 +7,8 @@ import { syncCheckpoint } from "@/lib/api.functions";
 import { Volume2, VolumeX } from "lucide-react";
 
 type Props = {
+  sessionToken: string;
+  initialCheckpoint: string;
   attemptNumber: number;
   attemptsRemaining: number;
   onGameOver: (result: { score: number; foods: number; durationMs: number; checkpoint: string }) => void;
@@ -122,6 +124,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, atte
       score: s.score,
       foods: s.foods,
       durationMs: Math.round(performance.now() - startedAt.current),
+      checkpoint: lastSyncRef.current.token,
     });
   }, [phase, onGameOver]);
 

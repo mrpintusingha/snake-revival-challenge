@@ -97,7 +97,7 @@ function Landing() {
 
         {!!data?.activity.length && (
           <section className="mt-8 space-y-1 border-l-2 border-border pl-4 text-xs text-muted-foreground">
-            {data.activity.slice(0, 5).map((e) => (
+            {data.activity.slice(0, 5).map((e: any) => (
               <p key={e.id as string}>
                 {activityLine(e as { event_type: string; metadata: Record<string, unknown> })}
               </p>
@@ -110,7 +110,7 @@ function Landing() {
             WHO&apos;S STILL GOT IT?
           </h2>
           <ol className="mt-6 divide-y divide-border border-y border-border">
-            {(data?.leaderboard ?? []).map((row, i) => (
+            {(data?.leaderboard ?? []).map((row: any, i: number) => (
               <li key={row.id as string} className="flex items-center gap-3 py-3 text-sm">
                 <span className="w-8 text-center">{["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`}</span>
                 <Link to="/p/$id" params={{ id: row.id as string }} className="flex-1 truncate hover:text-primary">

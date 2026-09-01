@@ -534,6 +534,7 @@ export const startAttempt = createServerFn({ method: "POST" })
 
     return {
       sessionToken: token,
+      initialCheckpoint: await signCheckpointData({ t: token, seq: 0, f: 0, d: 0 }),
       attemptNumber: attemptData.attempt_number,
       attemptsRemaining: attemptData.attempts_remaining,
       challengeCode: attemptData.challenge_code as string | null,

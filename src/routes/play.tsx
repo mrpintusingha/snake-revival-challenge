@@ -240,6 +240,8 @@ function PlayPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 py-6">
         <SnakeGame
+          sessionToken={sessionToken}
+          initialCheckpoint={initialCheckpoint}
           attemptNumber={attemptNumber}
           attemptsRemaining={attemptsRemaining}
           onGameOver={onGameOver}

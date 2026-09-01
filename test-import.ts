@@ -1,0 +1,1 @@
+import { startCheckout } from './src/lib/api.functions.ts'; startCheckout({ data: { secret: 'test-secret', nickname: 'tester', returnUrl: 'http://localhost:5173' } }).then(console.log).catch(console.error);
