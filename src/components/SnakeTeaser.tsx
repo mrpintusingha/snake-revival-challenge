@@ -54,31 +54,60 @@ export function SnakeTeaser() {
 
 
   return (
-    <div className="relative mx-auto w-full max-w-[320px] rounded-[2rem] bg-zinc-900 p-4 pb-8 shadow-2xl border-4 border-zinc-800 scale-90 sm:scale-100 origin-top">
-      <div className="mx-auto mb-6 h-1.5 w-16 rounded-full bg-black shadow-inner"></div>
-      
-      <div className="rounded-lg bg-zinc-950 p-3 shadow-inner ring-1 ring-zinc-800 ring-offset-1 ring-offset-zinc-900">
-        <div className="w-full">
-          <LcdScreen state={stateRef.current} overlay={overlay} className="shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]" />
-        </div>
-      </div>
+    /* Nokia 3310-style handset shell */
+    <div className="relative mx-auto w-full max-w-[300px] scale-90 sm:scale-100 origin-top select-none">
+      <div
+        className="relative rounded-[3rem] rounded-t-[3.5rem] p-4 pt-5 pb-7 shadow-2xl"
+        style={{
+          background: "linear-gradient(160deg, #6f7d94 0%, #4d5a70 45%, #3a4658 100%)",
+          border: "3px solid #2c3542",
+        }}
+      >
+        {/* subtle faceplate sheen */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[inherit]"
+          style={{ background: "linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 35%)" }}
+        />
 
-      <div className="mt-4 flex items-center justify-between px-2">
-        <span className="text-[9px] font-bold tracking-widest text-zinc-500">CLASSIC</span>
-      </div>
-
-            <div className="mt-8 grid grid-cols-3 grid-rows-3 gap-2 select-none px-6 opacity-80 pointer-events-none">
-        <div />
-        <div className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 shadow-md">▲</div>
-        <div />
-        <div className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 shadow-md">◀</div>
-        <div className="flex items-center justify-center">
-           <div className="h-4 w-4 rounded-full bg-zinc-800 shadow-inner" />
+        {/* earpiece grille */}
+        <div className="relative mx-auto mb-1.5 flex h-4 w-24 items-center justify-center gap-1 rounded-full bg-[#2c3542] shadow-inner">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <span key={i} className="h-2 w-[3px] rounded-full bg-black/70" />
+          ))}
         </div>
-        <div className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 shadow-md">▶</div>
-        <div />
-        <div className="flex h-12 w-full items-center justify-center rounded-lg border-b-4 border-zinc-950 bg-zinc-800 text-sm text-zinc-400 shadow-md">▼</div>
-        <div />
+
+        {/* NOKIA wordmark */}
+        <p className="relative mb-2 text-center text-[13px] font-bold tracking-[0.45em] text-[#e6ebf2]" style={{ fontFamily: "Arial, sans-serif" }}>
+          NOKIA
+        </p>
+
+        {/* screen bezel */}
+        <div className="relative rounded-[1.4rem] bg-[#20262e] p-2.5 shadow-inner ring-1 ring-black/60">
+          <div className="rounded-[0.9rem] bg-[#14181d] p-2">
+            <LcdScreen state={stateRef.current} overlay={overlay} className="rounded-[0.4rem] shadow-[inset_0_0_12px_rgba(0,0,0,0.55)]" />
+          </div>
+        </div>
+
+        {/* Navi key + soft keys */}
+        <div className="relative mt-4 px-2 opacity-90 pointer-events-none">
+          <div className="flex items-center justify-between px-1">
+            <div className="h-7 w-16 rounded-full bg-[#2c3542] shadow-md border-b-2 border-black/50" />
+            <div className="h-7 w-16 rounded-full bg-[#2c3542] shadow-md border-b-2 border-black/50" />
+          </div>
+          {/* iconic blue oval Navi key */}
+          <div className="mx-auto -mt-1 flex h-12 w-24 items-center justify-center rounded-[50%] bg-gradient-to-b from-[#3f6fb4] to-[#2a4f86] shadow-lg border-b-4 border-[#1d3a63]">
+            <div className="h-6 w-12 rounded-[50%] bg-[#243340] shadow-inner" />
+          </div>
+
+          {/* number pad */}
+          <div className="mt-4 grid grid-cols-3 gap-x-3 gap-y-2 px-1 text-center text-[10px] font-bold text-[#e6ebf2]">
+            {["1", "2 abc", "3 def", "4 ghi", "5 jkl", "6 mno", "7 pqrs", "8 tuv", "9 wxyz", "*", "0 +", "#"].map((k) => (
+              <div key={k} className="flex h-7 items-center justify-center rounded-full bg-[#2c3542] shadow-md border-b-2 border-black/50">
+                {k}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
