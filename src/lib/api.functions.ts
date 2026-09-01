@@ -464,11 +464,13 @@ export const startCheckout = createServerFn({ method: "POST" })
           : "Payment provider unavailable. Please try again.",
       );
     }
-    const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string };
+    const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string; id?: string };
     const url = json.checkout_url ?? json.payment_link;
     if (!url) throw new Error("Payment provider returned no checkout link.");
-    if (json.session_id) {
-      await db.from("payments").update({ provider_payment_id: json.session_id }).eq("id", payment.id);
+    
+    const providerId = json.session_id ?? json.id;
+    if (providerId) {
+      await db.from("payments").update({ provider_payment_id: providerId }).eq("id", payment.id);
     }
     return { mode: "redirect" as const, url, paymentId: payment.id, profileId: profile.id };
   });

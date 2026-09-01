@@ -52,6 +52,7 @@ const COUNTRIES = ["India", "United States", "United Kingdom", "Nigeria", "Brazi
 
 function PlayPage() {
   const [phase, setPhase] = useState<Phase>("loading");
+  const [autoStart, setAutoStart] = useState(false);
   const [nickname, setNickname] = useState("");
   const [country, setCountry] = useState("");
   const [busy, setBusy] = useState(false);
@@ -87,22 +88,34 @@ function PlayPage() {
         if (res.entry) {
           setAttemptsRemaining(res.entry.attempts_total - res.entry.attempts_used);
         }
-        setPhase("entry");
 
         // Coming back from checkout: confirm with the provider before trusting
         // the redirect, and never lose an entry that was actually paid for.
         if (!res.entry) {
-          const conf = await fnVerify({ data: { secret: getPlayerSecret() } });
+          let conf = await fnVerify({ data: { secret: getPlayerSecret() } });
+          let tries = 0;
+          
+          // If the webhook is delayed, poll briefly
+          while (!cancelled && conf.status === "pending" && tries < 10) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            if (cancelled) return;
+            conf = await fnVerify({ data: { secret: getPlayerSecret() } });
+            tries++;
+          }
+
           if (cancelled) return;
           if (conf.status === "paid") {
             setAttemptsRemaining(conf.attemptsRemaining);
             track("payment_completed", { mode: "provider" });
+            setAutoStart(true);
           } else if (conf.status === "failed" || conf.status === "cancelled") {
             setPayFailed(true);
             track("payment_failed", { reason: conf.status });
           }
         }
       } catch {
+        // empty
+      } finally {
         if (!cancelled) setPhase("entry");
       }
     })();
@@ -130,6 +143,13 @@ function PlayPage() {
       setBusy(false);
     }
   }, [fnStart]);
+
+  useEffect(() => {
+    if (phase === "entry" && autoStart && !busy) {
+      setAutoStart(false);
+      void beginAttempt();
+    }
+  }, [phase, autoStart, busy, beginAttempt]);
 
   const pay = async () => {
     if (nickname.trim().length < 2) {
