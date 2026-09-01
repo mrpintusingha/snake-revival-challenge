@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_seed text NOT NULL DEFAULT encode(gen_random_bytes(6), 'hex');
 
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
