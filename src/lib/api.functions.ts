@@ -379,8 +379,14 @@ export const startCheckout = createServerFn({ method: "POST" })
     });
 
     if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("[dodo] checkout failed", res.status, detail);
       await db.from("payments").update({ status: "failed" }).eq("id", payment.id);
-      throw new Error("Payment provider unavailable. Please try again.");
+      throw new Error(
+        res.status === 401
+          ? "Payment provider rejected our credentials. Please contact support."
+          : "Payment provider unavailable. Please try again.",
+      );
     }
     const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string };
     const url = json.checkout_url ?? json.payment_link;
