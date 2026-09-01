@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LcdScreen, type Overlay } from "@/components/LcdScreen";
 import { createState, step, tickFor, turn, type Dir, type SnakeState } from "@/lib/snake-engine";
 import { audio } from "@/lib/audio";
 import { Volume2, VolumeX } from "lucide-react";
@@ -7,10 +8,9 @@ type Props = {
   attemptNumber: number;
   attemptsRemaining: number;
   onGameOver: (result: { score: number; foods: number; durationMs: number }) => void;
-  canvas: HTMLCanvasElement | null;
 };
 
-export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver, canvas }: Props) {
+export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
   const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
@@ -102,15 +102,7 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver, canvas
           setPhase("awaiting-continue");
         }, 1200);
       }
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Your drawing logic here, for example:
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+      force((n) => n + 1);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
@@ -196,7 +188,51 @@ export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver, canvas
   };
 
 
-  return null;
+  const s = stateRef.current;
+  const overlay: Overlay =
+    phase === "startup"
+      ? { lines: ["90s SNAKE"] }
+      : phase === "countdown"
+        ? { lines: [count > 0 ? String(count) : "GO!"] }
+        : phase === "over"
+          ? { lines: ["GAME OVER"] }
+          : phase === "awaiting-continue"
+            ? { lines: ["GAME OVER", "PRESS ANY KEY"] }
+            : null;
 
+  return (
+    <div
+      className="w-full max-w-[360px] touch-none select-none"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+    >
+      <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+        <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
+        <button
+          type="button"
+          onClick={toggleSound}
+          aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
+          className="rounded p-1 hover:bg-accent"
+        >
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <LcdScreen state={s} overlay={overlay} />
+
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        Attempt {attemptNumber} · {attemptsRemaining} left · swipe or use arrow keys
+      </p>
+
+      {phase === "awaiting-continue" && (
+        <button
+          type="button"
+          onClick={triggerGameOverTransition}
+          className="mt-4 w-full rounded bg-primary px-6 py-4 text-sm font-bold uppercase tracking-wide text-primary-foreground"
+        >
+          Continue
+        </button>
+      )}
+    </div>
+  );
 }
-
