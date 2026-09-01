@@ -79,21 +79,21 @@ function LeaderboardPage() {
             return (
               <li
                 key={row.id as string}
-                className={`flex items-center gap-3 py-3 text-sm ${mine ? "bg-accent px-2" : ""}`}
+                className={`flex items-center gap-3 py-3 text-sm ${mine ? "bg-accent px-2 rounded font-bold" : ""}`}
               >
-                <span className="w-8 text-center font-mono text-muted-foreground">{row.rank}</span>
+                <span className="w-10 text-left font-mono font-bold text-primary">#{row.rank}</span>
                 <Link
                   to="/p/$id"
                   params={{ id: row.id as string }}
-                  className="flex-1 truncate hover:text-primary"
+                  className="flex-1 truncate hover:text-primary font-bold uppercase tracking-wide"
                 >
                   {row.nickname as string}
                   {mine && " (you)"}
                 </Link>
-                <span className="hidden text-[10px] tracking-widest text-muted-foreground uppercase sm:block">
-                  {tierFor(row.best_score as number)}
+                <span className="hidden w-32 truncate text-xs text-muted-foreground sm:block">
+                  {row.country as string || "Unknown"}
                 </span>
-                <span className="w-20 text-right font-mono tabular-nums">
+                <span className="w-20 text-right font-mono font-bold tabular-nums">
                   {(row.best_score as number).toLocaleString()}
                 </span>
               </li>

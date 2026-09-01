@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { copyText, nativeShare, telegramUrl, whatsappUrl, xUrl } from "@/lib/share";
+import { copyText, nativeShare, facebookUrl, whatsappUrl, xUrl } from "@/lib/share";
 import { track } from "@/lib/analytics";
 
 export function ShareRow({ text, url }: { text: string; url: string }) {
@@ -41,13 +41,13 @@ export function ShareRow({ text, url }: { text: string; url: string }) {
         X
       </a>
       <a
-        href={telegramUrl(text, url)}
+        href={facebookUrl(url)}
         target="_blank"
         rel="noopener"
-        onClick={() => track("challenge_shared", { channel: "telegram" })}
+        onClick={() => track("challenge_shared", { channel: "facebook" })}
         className="rounded border border-border px-4 py-3 text-sm tracking-wide uppercase hover:bg-accent"
       >
-        Telegram
+        Facebook
       </a>
       <button
         type="button"

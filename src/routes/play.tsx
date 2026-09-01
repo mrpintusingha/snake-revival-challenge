@@ -212,12 +212,19 @@ function PlayPage() {
           setBattle(b);
           track("friend_game_completed", { won: b?.youWon });
         }
-        setPhase("result");
+        
+        if (res.attemptsRemaining <= 0) {
+          setPhase("result");
+        } else {
+          setAttemptNumber((n) => n + 1);
+          void beginAttempt();
+        }
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save your score");
         setPhase("result");
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fnSubmit, fnComplete, sessionToken],
   );
 
@@ -260,6 +267,7 @@ function PlayPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 py-6">
         <SnakeGame
+          key={sessionToken}
           sessionToken={sessionToken}
           initialCheckpoint={initialCheckpoint}
           attemptNumber={attemptNumber}
@@ -345,7 +353,7 @@ function PlayPage() {
               </button>
             ) : (
               <div className="space-y-4">
-                <ShareRow text={challengeShareText(score, url)} url={url} />
+                <ShareRow text={`I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`} url={url} />
                 <p className="text-center font-mono text-xs break-all text-muted-foreground bg-zinc-900/50 p-3 rounded">{url}</p>
               </div>
             )}

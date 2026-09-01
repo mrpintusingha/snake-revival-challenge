@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LcdScreen, type Overlay } from "@/components/LcdScreen";
+import { NokiaFrame } from "@/components/NokiaFrame";
 import { createState, step, tickFor, turn, type Dir, type SnakeState } from "@/lib/snake-engine";
 import { audio } from "@/lib/audio";
 import { useServerFn } from "@tanstack/react-start";
@@ -210,26 +211,35 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, atte
 
   return (
     <div
-      className="w-full max-w-[360px] touch-none select-none"
+      className="mx-auto w-full max-w-[360px] touch-none select-none"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
     >
-      <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
-        <button
-          type="button"
-          onClick={toggleSound}
-          aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
-          className="rounded p-1 hover:bg-accent"
-        >
-          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-        </button>
+      <NokiaFrame
+        topContent={
+          <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
+            <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
+              className="rounded p-1 hover:bg-accent"
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+          </div>
+        }
+      >
+        <LcdScreen state={s} overlay={overlay} className="rounded-[0.4rem] shadow-[inset_0_0_12px_rgba(0,0,0,0.55)]" />
+      </NokiaFrame>
+
+      <div className="mt-6 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">
+        <span className="hidden sm:inline">← ↑ ↓ →  MOVE</span>
+        <span className="sm:hidden">SWIPE TO MOVE</span>
       </div>
 
-      <LcdScreen state={s} overlay={overlay} />
-
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        Attempt {attemptNumber} · {attemptsRemaining} left · swipe or use arrow keys
+        Attempt {attemptNumber} · {attemptsRemaining} left
       </p>
 
       {phase === "awaiting-continue" && (

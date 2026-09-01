@@ -6,17 +6,17 @@ export function challengeUrl(code: string): string {
 }
 
 export function scoreShareText(score: number, percentile: number, url: string) {
-  return `🐍 I scored ${score.toLocaleString()} on the ${BRAND.name}.\n\nApparently I'm better than ${percentile}% of players.\n\nCan you beat me?\n\n${url}`;
+  return `I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`;
 }
 
 export function challengeShareText(score: number, url: string) {
-  return `😂 I scored ${score.toLocaleString()} on ${BRAND.short}.\n\nI challenge you to beat me.\n\n${url}`;
+  return `I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`;
 }
 
 export async function nativeShare(text: string, url: string): Promise<boolean> {
   if (typeof navigator !== "undefined" && navigator.share) {
     try {
-      await navigator.share({ title: BRAND.name, text, url });
+      await navigator.share({ title: "90s Snake", text, url });
       return true;
     } catch {
       return false;
@@ -25,6 +25,7 @@ export async function nativeShare(text: string, url: string): Promise<boolean> {
   return false;
 }
 
+export const facebookUrl = (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 export const whatsappUrl = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`;
 export const telegramUrl = (text: string, url: string) =>
   `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
