@@ -58,6 +58,7 @@ function PlayPage() {
   const [attemptsRemaining, setAttemptsRemaining] = useState(0);
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [sessionToken, setSessionToken] = useState("");
+  const [initialCheckpoint, setInitialCheckpoint] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
@@ -115,6 +116,7 @@ function PlayPage() {
     try {
       const res = await fnStart({ data: { secret: getPlayerSecret() } });
       setSessionToken(res.sessionToken);
+      setInitialCheckpoint(res.initialCheckpoint);
       setAttemptNumber(res.attemptNumber);
       setAttemptsRemaining(res.attemptsRemaining);
       setResult(null);
@@ -165,7 +167,7 @@ function PlayPage() {
   };
 
   const onGameOver = useCallback(
-    async (r: { score: number; foods: number; durationMs: number }) => {
+    async (r: { score: number; foods: number; durationMs: number; checkpoint: string }) => {
       track("official_game_completed", { score: r.score });
       try {
         const res = await fnSubmit({
@@ -174,6 +176,7 @@ function PlayPage() {
             foods: r.foods,
             durationMs: r.durationMs,
             reportedScore: r.score,
+            checkpoint: r.checkpoint,
           },
         });
         setResult(res);

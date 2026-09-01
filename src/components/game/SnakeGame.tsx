@@ -2,20 +2,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LcdScreen, type Overlay } from "@/components/LcdScreen";
 import { createState, step, tickFor, turn, type Dir, type SnakeState } from "@/lib/snake-engine";
 import { audio } from "@/lib/audio";
+import { useServerFn } from "@tanstack/react-start";
+import { syncCheckpoint } from "@/lib/api.functions";
 import { Volume2, VolumeX } from "lucide-react";
 
 type Props = {
   attemptNumber: number;
   attemptsRemaining: number;
-  onGameOver: (result: { score: number; foods: number; durationMs: number }) => void;
+  onGameOver: (result: { score: number; foods: number; durationMs: number; checkpoint: string }) => void;
 };
 
-export function SnakeGame({ attemptNumber, attemptsRemaining, onGameOver }: Props) {
+export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, attemptsRemaining, onGameOver }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
   const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
   const [count, setCount] = useState(3);
   const startedAt = useRef(0);
+  const fnSync = useServerFn(syncCheckpoint);
+  const lastSyncRef = useRef<{ foods: number; token: string }>({ foods: 0, token: initialCheckpoint });
+  const isSyncingRef = useRef(false);
   const finished = useRef(false);
   const [soundEnabled, setSoundEnabled] = useState(audio.enabled);
 

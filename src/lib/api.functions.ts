@@ -61,6 +61,38 @@ const nicknameSchema = z
   .max(18)
   .regex(/^[\p{L}\p{N} _.'-]+$/u, "Letters and numbers only");
 
+
+async function signCheckpointData(payloadObj: { t: string; seq: number; f: number; d: number }): Promise<string> {
+  const payload = btoa(JSON.stringify(payloadObj));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(process.env["SUPABASE_SERVICE_ROLE_KEY"] || "fallback_secret_key"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const sig = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${payload}.${sig}`;
+}
+
+async function verifyCheckpointData(token: string) {
+  const parts = token.split('.');
+  if (parts.length !== 2) throw new Error("Invalid checkpoint format");
+  const [payload, sig] = parts;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(process.env["SUPABASE_SERVICE_ROLE_KEY"] || "fallback_secret_key"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const expectedSig = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (sig !== expectedSig) throw new Error("Checkpoint signature mismatch");
+  return JSON.parse(atob(payload!)) as { t: string; seq: number; f: number; d: number };
+}
+
 /* ------------------------------------------------------- public read data */
 
 let homeDataCache: { data: any; expiresAt: number } | null = null;
@@ -504,14 +536,48 @@ export const startAttempt = createServerFn({ method: "POST" })
     };
   });
 
+
+export const syncCheckpoint = createServerFn({ method: "POST" })
+  .validator((i: { sessionToken: string; checkpoint: string; foods: number; durationMs: number }) =>
+    z
+      .object({
+        sessionToken: z.string().min(16).max(200),
+        checkpoint: z.string().min(10),
+        foods: z.number().int().min(0).max(5000),
+        durationMs: z.number().int().min(0).max(3 * 3600 * 1000),
+      })
+      .parse(i)
+  )
+  .handler(async ({ data }) => {
+    const prev = await verifyCheckpointData(data.checkpoint);
+    if (prev.t !== data.sessionToken) throw new Error("Wrong session checkpoint");
+
+    const foodsDelta = data.foods - prev.f;
+    const timeDelta = data.durationMs - prev.d;
+
+    if (foodsDelta < 1) throw new Error("No foods eaten");
+    if (foodsDelta > 30) throw new Error("Too many foods since last checkpoint"); 
+    if (timeDelta < foodsDelta * MIN_MS_PER_FOOD * 0.6) throw new Error("Too fast");
+
+    return {
+      checkpoint: await signCheckpointData({
+        t: data.sessionToken,
+        seq: prev.seq + 1,
+        f: data.foods,
+        d: data.durationMs
+      })
+    };
+  });
+
 export const submitScore = createServerFn({ method: "POST" })
-  .inputValidator((i: { sessionToken: string; foods: number; durationMs: number; reportedScore: number }) =>
+  .inputValidator((i: { sessionToken: string; foods: number; durationMs: number; reportedScore: number; checkpoint: string }) =>
     z
       .object({
         sessionToken: z.string().min(16).max(200),
         foods: z.number().int().min(0).max(5000),
         durationMs: z.number().int().min(0).max(3 * 3600 * 1000),
         reportedScore: z.number().int().min(0).max(10_000_000),
+        checkpoint: z.string().min(10),
       })
       .parse(i),
   )
