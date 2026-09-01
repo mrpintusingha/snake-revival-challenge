@@ -425,7 +425,7 @@ export const getEntry = createServerFn({ method: "POST" })
 /* ----------------------------------------------------------- game session */
 
 export const startAttempt = createServerFn({ method: "POST" })
-  .inputValidator((i: { secret: string }) => z.object({ secret: z.string().min(8).max(200) }).parse(i))
+  .validator((i: { secret: string }) => z.object({ secret: z.string().min(8).max(200) }).parse(i))
   .handler(async ({ data }) => {
     rateLimit(`attempt:${data.secret.slice(0, 12)}`, 15, 60000);
     const db = await admin();
@@ -433,38 +433,34 @@ export const startAttempt = createServerFn({ method: "POST" })
     const { data: profile } = await db.from("profiles").select("id").eq("secret_hash", hash).maybeSingle();
     if (!profile) throw new Error("No player found. Enter the challenge first.");
 
-    const { data: payments } = await db
-      .from("payments")
-      .select("id, attempts_total, attempts_used, challenge_code")
-      .eq("profile_id", profile.id)
-      .eq("status", "succeeded")
-      .order("created_at", { ascending: false })
-      .limit(5);
-    const entry = (payments ?? []).find((p) => p.attempts_used < p.attempts_total);
-    if (!entry) throw new Error("No attempts remaining. Enter the challenge to play again.");
-
-    const attemptNumber = entry.attempts_used + 1;
+    // Using client-provided session token prevents race condition if client retries,
+    // but without one we generate locally and rely strictly on the database locking
+    // in the consume_attempt RPC to serialize concurrent starts from the same user.
     const token = crypto.randomUUID() + crypto.randomUUID();
-    const { error } = await db.from("game_sessions").insert({
-      profile_id: profile.id,
-      payment_id: entry.id,
-      attempt_number: attemptNumber,
-      session_token_hash: await sha256(token),
-      game_version: GAME_VERSION,
-      status: "active",
-    });
-    if (error) throw new Error("Could not start the game");
+    const tokenHash = await sha256(token);
 
-    await db
-      .from("payments")
-      .update({ attempts_used: attemptNumber, updated_at: new Date().toISOString() })
-      .eq("id", entry.id);
+    const { data: result, error } = await (db.rpc as any)("consume_attempt", {
+      p_profile_id: profile.id,
+      p_session_token_hash: tokenHash,
+      p_game_version: GAME_VERSION,
+    });
+
+    if (error) {
+      if (error.message.includes("No attempts remaining")) {
+        throw new Error("No attempts remaining. Enter the challenge to play again.");
+      }
+      throw new Error("Could not start the game");
+    }
+
+    // The RPC returns a JSON object natively if declared as RETURNS JSON
+    // With Supabase typings it might be typed as any or string, so we ensure it's an object.
+    const attemptData = typeof result === "string" ? JSON.parse(result) : result;
 
     return {
       sessionToken: token,
-      attemptNumber,
-      attemptsRemaining: entry.attempts_total - attemptNumber,
-      challengeCode: entry.challenge_code as string | null,
+      attemptNumber: attemptData.attempt_number,
+      attemptsRemaining: attemptData.attempts_remaining,
+      challengeCode: attemptData.challenge_code as string | null,
     };
   });
 
