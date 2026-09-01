@@ -64,9 +64,11 @@ const nicknameSchema = z
 
 async function signCheckpointData(payloadObj: { t: string; seq: number; f: number; d: number }): Promise<string> {
   const payload = btoa(JSON.stringify(payloadObj));
+  const secret = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!secret) throw new Error("Required server secret is not configured");
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(process.env["SUPABASE_SERVICE_ROLE_KEY"] || "fallback_secret_key"),
+    new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
@@ -80,9 +82,11 @@ async function verifyCheckpointData(token: string) {
   const parts = token.split('.');
   if (parts.length !== 2) throw new Error("Invalid checkpoint format");
   const [payload, sig] = parts;
+  const secret = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!secret) throw new Error("Required server secret is not configured");
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(process.env["SUPABASE_SERVICE_ROLE_KEY"] || "fallback_secret_key"),
+    new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
