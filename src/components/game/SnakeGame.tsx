@@ -11,11 +11,10 @@ type Props = {
   sessionToken: string;
   initialCheckpoint: string;
   attemptNumber: number;
-  attemptsRemaining: number;
   onGameOver: (result: { score: number; foods: number; durationMs: number; checkpoint: string }) => void;
 };
 
-export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, attemptsRemaining, onGameOver }: Props) {
+export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGameOver }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
   const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
@@ -239,7 +238,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, atte
       </div>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
-        Attempt {attemptNumber} · {attemptsRemaining} left
+        Attempt {attemptNumber}
       </p>
 
       {phase === "awaiting-continue" && (

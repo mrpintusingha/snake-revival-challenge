@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SnakeTeaser } from "@/components/SnakeTeaser";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND } from "@/lib/config";
-import { getHomeData } from "@/lib/api.functions";
+import { getHomeData, getWeeklyLeaderboard } from "@/lib/api.functions";
 import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/")({
@@ -45,6 +45,11 @@ function activityLine(e: { event_type: string; metadata: Record<string, unknown>
 
 function Landing() {
   const { data } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
+  const { data: weekly } = useQuery({
+    queryKey: ["weekly-leaderboard"],
+    queryFn: () => getWeeklyLeaderboard(),
+    staleTime: 20000,
+  });
 
   return (
     <div className="min-h-screen">
@@ -81,7 +86,7 @@ function Landing() {
                 {BRAND.cta}
               </Link>
               <p className="mt-3 text-center text-xs text-muted-foreground">
-                3 official attempts • Global ranking • Challenge your friends
+                Free to play • Weekly leaderboard • Challenge your friends
               </p>
             </section>
 
@@ -109,7 +114,7 @@ function Landing() {
             )}
 
             <section className="mt-16 grid gap-6 sm:grid-cols-3 mx-auto w-full max-w-2xl">
-              <Step n="1" title="ENTER" body={`Pay $1 to enter the official challenge.`} />
+              <Step n="1" title="ENTER" body="Play free — no payment, no signup." />
               <Step n="2" title="PLAY" body="Play the classic Snake experience." />
               <Step n="3" title="CHALLENGE" body="Get your score and challenge your friends." />
             </section>
@@ -125,9 +130,35 @@ function Landing() {
             </section>
           </div>
 
-          {/* Right Column - Top 20 Leaderboard */}
+          {/* Right Column - Weekly + Top 20 Leaderboards */}
           <div className="mt-14 lg:mt-6">
             <section className="w-full">
+              <h2 className="pixel text-[11px] text-primary sm:text-sm">THIS WEEK'S TOP 3</h2>
+              <p className="mt-2 text-xs text-muted-foreground">
+                This week's top 3 players are rewarded by this week's sponsors.
+              </p>
+              <ol className="mt-4 divide-y divide-border border-y border-border">
+                {(weekly?.rows ?? []).slice(0, 3).map((row: any) => (
+                  <li key={row.profileId as string} className="flex items-center gap-3 py-3 text-sm">
+                    <span className="w-8 text-left font-mono font-bold text-primary">#{row.rank}</span>
+                    <span className="flex-1 truncate font-bold uppercase tracking-wide">{row.nickname as string}</span>
+                    <span className="hidden w-28 truncate text-xs text-muted-foreground sm:block">
+                      {(row.country as string) || "Unknown"}
+                    </span>
+                    <span className="w-20 text-right font-mono font-bold tabular-nums">
+                      {(row.score as number).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+                {!weekly?.rows?.length && (
+                  <li className="py-6 text-center text-sm text-muted-foreground">
+                    No scores yet this week. The first name on this board could be yours.
+                  </li>
+                )}
+              </ol>
+            </section>
+
+            <section className="mt-10 w-full">
               <h2 className="pixel text-[11px] text-primary sm:text-sm">
                 TOP 20 — WHO'S STILL GOT IT?
               </h2>

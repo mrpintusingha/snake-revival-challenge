@@ -32,21 +32,12 @@ export const BRAND = {
   tagline2: "Can you still beat your friends?",
   supporting:
     "The classic mobile Snake experience, rebuilt as a global challenge for the 90s generation.",
-  cta: `ENTER THE CHALLENGE — ${formatPrice()}`,
-  payCta: `PAY ${formatPrice()} & PLAY`,
+  cta: "PLAY FREE",
   eraWording: "Nokia-era Snake",
   disclaimer: "Not affiliated with or endorsed by Nokia.",
   legal:
-    "This is a paid game experience, not gambling. No cash prizes, no prize pool, no payouts, no betting. You pay to participate.",
+    "Free to play. No cash prizes, no prize pool, no payouts, no betting — this week's top 3 players receive promotional rewards provided by this week's sponsors.",
 } as const;
-
-export const ENTRY_BENEFITS = [
-  "Global leaderboard",
-  "Personal best",
-  "Friend challenges",
-  "Shareable score",
-  "Classic Snake experience",
-] as const;
 
 export const GAME_VERSION = "1.0.0";
 

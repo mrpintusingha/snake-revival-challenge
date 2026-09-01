@@ -239,6 +239,66 @@ export const getLeaderboard = createServerFn({ method: "GET" })
     return { rows: (rows ?? []).map((r, i) => ({ ...r, rank: i + 1 })), you };
   });
 
+let weeklyLeaderboardCache: { data: any; expiresAt: number } | null = null;
+let weeklyLeaderboardPromise: Promise<any> | null = null;
+
+export const getWeeklyLeaderboard = createServerFn({ method: "GET" }).handler(async () => {
+  const TTL = 30 * 1000; // 30 seconds — this drives "who's #1 right now" framing
+  const now = Date.now();
+
+  if (weeklyLeaderboardCache && now < weeklyLeaderboardCache.expiresAt) {
+    return weeklyLeaderboardCache.data;
+  }
+  if (weeklyLeaderboardPromise) return weeklyLeaderboardPromise;
+
+  weeklyLeaderboardPromise = (async () => {
+    try {
+      const db = await publicDb();
+      const { data: week } = await db
+        .from("game_weeks")
+        .select("id, week_start, week_end, game_key")
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (!week) {
+        const empty = { week: null, rows: [] };
+        weeklyLeaderboardCache = { data: empty, expiresAt: now + TTL };
+        return empty;
+      }
+
+      const { data: rows, error } = await (db.rpc as any)("get_weekly_leaderboard", {
+        p_week_id: week.id,
+        p_limit: 100,
+      });
+      if (error) throw error;
+
+      const data = {
+        week,
+        rows: ((rows ?? []) as { profile_id: string; nickname: string; country: string | null; best_score: number }[]).map(
+          (r, i) => ({
+            rank: i + 1,
+            profileId: r.profile_id,
+            nickname: r.nickname,
+            country: r.country,
+            score: r.best_score,
+          }),
+        ),
+      };
+
+      weeklyLeaderboardCache = { data, expiresAt: Date.now() + TTL };
+      return data;
+    } catch (e) {
+      console.error("[getWeeklyLeaderboard] Failed to fetch weekly leaderboard", e);
+      if (weeklyLeaderboardCache) return weeklyLeaderboardCache.data;
+      return { week: null, rows: [] };
+    } finally {
+      weeklyLeaderboardPromise = null;
+    }
+  })();
+
+  return weeklyLeaderboardPromise;
+});
+
 export const getProfile = createServerFn({ method: "GET" })
   .inputValidator((i: { id: string }) => z.object({ id: z.string().uuid() }).parse(i))
   .handler(async ({ data }) => {
@@ -505,41 +565,33 @@ export const getEntry = createServerFn({ method: "POST" })
 export const startAttempt = createServerFn({ method: "POST" })
   .validator((i: { secret: string }) => z.object({ secret: z.string().min(8).max(200) }).parse(i))
   .handler(async ({ data }) => {
+    // The game is free: no payment/attempt-balance check. The rate limit is
+    // the anti-abuse control now that there's no payment wall.
     rateLimit(`attempt:${data.secret.slice(0, 12)}`, 15, 60000);
     const db = await admin();
     const hash = await sha256(data.secret);
     const { data: profile } = await db.from("profiles").select("id").eq("secret_hash", hash).maybeSingle();
-    if (!profile) throw new Error("No player found. Enter the challenge first.");
+    if (!profile) throw new Error("No player found. Enter your name first.");
 
-    // Using client-provided session token prevents race condition if client retries,
-    // but without one we generate locally and rely strictly on the database locking
-    // in the consume_attempt RPC to serialize concurrent starts from the same user.
     const token = crypto.randomUUID() + crypto.randomUUID();
     const tokenHash = await sha256(token);
 
-    const { data: result, error } = await (db.rpc as any)("consume_attempt", {
-      p_profile_id: profile.id,
-      p_session_token_hash: tokenHash,
-      p_game_version: GAME_VERSION,
-    });
-
-    if (error) {
-      if (error.message.includes("No attempts remaining")) {
-        throw new Error("No attempts remaining. Enter the challenge to play again.");
-      }
-      throw new Error("Could not start the game");
-    }
-
-    // The RPC returns a JSON object natively if declared as RETURNS JSON
-    // With Supabase typings it might be typed as any or string, so we ensure it's an object.
-    const attemptData = typeof result === "string" ? JSON.parse(result) : result;
+    const { data: session, error } = await db
+      .from("game_sessions")
+      .insert({
+        profile_id: profile.id,
+        session_token_hash: tokenHash,
+        game_version: GAME_VERSION,
+        status: "active",
+      })
+      .select("attempt_number")
+      .single();
+    if (error || !session) throw new Error("Could not start the game");
 
     return {
       sessionToken: token,
       initialCheckpoint: await signCheckpointData({ t: token, seq: 0, f: 0, d: 0 }),
-      attemptNumber: attemptData.attempt_number,
-      attemptsRemaining: attemptData.attempts_remaining,
-      challengeCode: attemptData.challenge_code as string | null,
+      attemptNumber: session.attempt_number,
     };
   });
 

@@ -1,17 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SnakeGame } from "@/components/game/SnakeGame";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, ENTRY_ATTEMPTS, ENTRY_BENEFITS, formatPrice } from "@/lib/config";
+import { BRAND } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import {
   getPendingChallenge,
   getPlayerSecret,
-  setPendingChallenge,
   setStoredProfileId,
 } from "@/lib/player";
 import { challengeUrl, challengeShareText, scoreShareText } from "@/lib/share";
@@ -19,24 +18,23 @@ import {
   completeChallenge,
   createChallenge,
   getEntry,
+  saveIdentity,
   startAttempt,
-  startCheckout,
   submitScore,
-  verifyPayment,
 } from "@/lib/api.functions";
 
 export const Route = createFileRoute("/play")({
   head: () => ({
     meta: [
-      { title: `Enter the ${BRAND.name} — ${formatPrice()}` },
+      { title: `Play Free — ${BRAND.name}` },
       {
         name: "description",
-        content: `${ENTRY_ATTEMPTS} official attempts, a global ranking and a challenge link for your friends.`,
+        content: "Play free, keep your best score, and see where you rank this week.",
       },
-      { property: "og:title", content: `Enter the ${BRAND.name}` },
+      { property: "og:title", content: `Play Free — ${BRAND.name}` },
       {
         property: "og:description",
-        content: "Pay once, play three official attempts, keep your best score.",
+        content: "The classic mobile Snake experience. Free to play. Global ranking.",
       },
     ],
   }),
@@ -52,28 +50,27 @@ const COUNTRIES = ["India", "United States", "United Kingdom", "Nigeria", "Brazi
 
 function PlayPage() {
   const [phase, setPhase] = useState<Phase>("loading");
-  const [autoStart, setAutoStart] = useState(false);
   const [nickname, setNickname] = useState("");
   const [country, setCountry] = useState("");
+  const [hasIdentity, setHasIdentity] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [attemptsRemaining, setAttemptsRemaining] = useState(0);
   const [attemptNumber, setAttemptNumber] = useState(1);
+  const attemptCountRef = useRef(0);
   const [sessionToken, setSessionToken] = useState("");
   const [initialCheckpoint, setInitialCheckpoint] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
-  const [payFailed, setPayFailed] = useState(false);
 
   const fnEntry = useServerFn(getEntry);
-  const fnCheckout = useServerFn(startCheckout);
+  const fnSaveIdentity = useServerFn(saveIdentity);
   const fnStart = useServerFn(startAttempt);
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
   const fnComplete = useServerFn(completeChallenge);
-  const fnVerify = useServerFn(verifyPayment);
 
-  // Session recovery: a paid entry survives refresh, tab close and slow networks.
+  // A returning device already has a nickname/country on file — recall it so
+  // they can skip straight to playing instead of re-entering it every visit.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -81,37 +78,11 @@ function PlayPage() {
         const res = await fnEntry({ data: { secret: getPlayerSecret() } });
         if (cancelled) return;
         if (res.profile) {
-          setNickname(res.profile.nickname === "Player" ? "" : res.profile.nickname);
+          const known = res.profile.nickname !== "Player";
+          setNickname(known ? res.profile.nickname : "");
           setCountry(res.profile.country ?? "");
+          setHasIdentity(known);
           setStoredProfileId(res.profile.id);
-        }
-        if (res.entry) {
-          setAttemptsRemaining(res.entry.attempts_total - res.entry.attempts_used);
-        }
-
-        // Coming back from checkout: confirm with the provider before trusting
-        // the redirect, and never lose an entry that was actually paid for.
-        if (!res.entry) {
-          let conf = await fnVerify({ data: { secret: getPlayerSecret() } });
-          let tries = 0;
-          
-          // If the webhook is delayed, poll briefly
-          while (!cancelled && conf.status === "pending" && tries < 10) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            if (cancelled) return;
-            conf = await fnVerify({ data: { secret: getPlayerSecret() } });
-            tries++;
-          }
-
-          if (cancelled) return;
-          if (conf.status === "paid") {
-            setAttemptsRemaining(conf.attemptsRemaining);
-            track("payment_completed", { mode: "provider" });
-            setAutoStart(true);
-          } else if (conf.status === "failed" || conf.status === "cancelled") {
-            setPayFailed(true);
-            track("payment_failed", { reason: conf.status });
-          }
         }
       } catch {
         // empty
@@ -122,20 +93,21 @@ function PlayPage() {
     return () => {
       cancelled = true;
     };
-  }, [fnEntry, fnVerify]);
+  }, [fnEntry]);
 
   const beginAttempt = useCallback(async () => {
     setBusy(true);
     try {
       const res = await fnStart({ data: { secret: getPlayerSecret() } });
+      attemptCountRef.current += 1;
       setSessionToken(res.sessionToken);
       setInitialCheckpoint(res.initialCheckpoint);
-      setAttemptNumber(res.attemptNumber);
-      setAttemptsRemaining(res.attemptsRemaining);
+      setAttemptNumber(attemptCountRef.current);
       setResult(null);
       setBattle(null);
+      setCode(null);
       setPhase("transition");
-      track("official_game_started", { attempt: res.attemptNumber });
+      track("official_game_started", { attempt: attemptCountRef.current });
       setTimeout(() => setPhase("game"), 1600);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start the game");
@@ -144,43 +116,22 @@ function PlayPage() {
     }
   }, [fnStart]);
 
-  useEffect(() => {
-    if (phase === "entry" && autoStart && !busy) {
-      setAutoStart(false);
-      void beginAttempt();
-    }
-  }, [phase, autoStart, busy, beginAttempt]);
-
-  const pay = async () => {
-    if (nickname.trim().length < 2) {
+  const playFree = async () => {
+    if (!hasIdentity && nickname.trim().length < 2) {
       toast.error("Pick a nickname first");
       return;
     }
     setBusy(true);
-    track("checkout_started", { price: formatPrice() });
+    track("play_free_clicked");
     try {
-      const pending = getPendingChallenge();
-      const res = await fnCheckout({
-        data: {
-          secret: getPlayerSecret(),
-          nickname: nickname.trim(),
-          country: country || null,
-          challengeCode: pending,
-          returnUrl: `${window.location.origin}/play`,
-        },
+      const profile = await fnSaveIdentity({
+        data: { secret: getPlayerSecret(), nickname: nickname.trim(), country: country || null },
       });
-      if (res.profileId) setStoredProfileId(res.profileId);
-      if (res.mode === "redirect") {
-        window.location.href = res.url;
-        return;
-      }
-      track("payment_completed", { mode: "test" });
-      setAttemptsRemaining(ENTRY_ATTEMPTS);
-      toast.success("Entry unlocked");
+      setStoredProfileId(profile.id);
+      setHasIdentity(true);
       await beginAttempt();
     } catch (e) {
-      track("payment_failed");
-      toast.error(e instanceof Error ? e.message : "Payment could not be started");
+      toast.error(e instanceof Error ? e.message : "Could not save your name");
     } finally {
       setBusy(false);
     }
@@ -212,20 +163,14 @@ function PlayPage() {
           setBattle(b);
           track("friend_game_completed", { won: b?.youWon });
         }
-        
-        if (attemptsRemaining <= 0) {
-          setPhase("result");
-        } else {
-          setAttemptNumber((n) => n + 1);
-          void beginAttempt();
-        }
+
+        setPhase("result");
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save your score");
         setPhase("result");
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [fnSubmit, fnComplete, sessionToken, attemptsRemaining, beginAttempt],
+    [fnSubmit, fnComplete, sessionToken],
   );
 
   const makeChallenge = async () => {
@@ -271,7 +216,6 @@ function PlayPage() {
           sessionToken={sessionToken}
           initialCheckpoint={initialCheckpoint}
           attemptNumber={attemptNumber}
-          attemptsRemaining={attemptsRemaining}
           onGameOver={onGameOver}
         />
       </div>
@@ -371,105 +315,76 @@ function PlayPage() {
           )}
 
           <section className="space-y-3 pt-4 border-t border-border">
-            {attemptsRemaining > 0 ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  track("repeat_attempt");
-                  setPhase("transition");
-                  setResult(null);
-                  setCode(null);
-                  setAttemptNumber((n) => n + 1);
-                }}
-                className="w-full rounded border border-border px-6 py-5 text-sm font-bold tracking-wide uppercase hover:bg-accent"
-              >
-                Remember how you always wanted one more try? ({attemptsRemaining} left)
-              </button>
-            ) : (
-              <Link
-                to="/leaderboard"
-                className="block w-full rounded border border-border px-6 py-4 text-center text-sm font-bold tracking-wide uppercase hover:bg-accent"
-              >
-                See final leaderboard
-              </Link>
-            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void beginAttempt()}
+              className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
+            >
+              {busy ? "One moment…" : "Play again"}
+            </button>
+            <Link
+              to="/leaderboard"
+              className="block w-full rounded border border-border px-6 py-4 text-center text-sm font-bold tracking-wide uppercase hover:bg-accent"
+            >
+              See this week's leaderboard
+            </Link>
           </section>
         </div>
       </Shell>
     );
   }
   // phase === "entry"
-  const paid = attemptsRemaining > 0;
   return (
     <Shell>
       <div className="rise space-y-8 py-4">
-        {payFailed && (
-          <section className="border border-destructive/60 p-5 text-center">
-            <h2 className="pixel text-[10px] text-destructive">PAYMENT NOT COMPLETED</h2>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Your game entry has not been charged.
-            </p>
-          </section>
-        )}
-
         <section className="text-center">
           <h1 className="pixel text-[12px] leading-[1.9] text-primary sm:text-[14px]">
-            {paid ? "YOU'RE IN" : "ENTER THE OFFICIAL CHALLENGE"}
+            {hasIdentity ? "READY TO PLAY?" : "ENTER THE CHALLENGE — FREE"}
           </h1>
-          {paid ? (
-            <p className="mt-4 text-sm text-muted-foreground">
-              {attemptsRemaining} official {attemptsRemaining === 1 ? "attempt" : "attempts"} left.
-              Keep your best score.
-            </p>
-          ) : (
-            <>
-              <p className="mt-5 font-mono text-5xl font-bold tabular-nums">{formatPrice()}</p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {ENTRY_ATTEMPTS} official attempts. Keep your best score.
-              </p>
-            </>
-          )}
+          <p className="mt-4 text-sm text-muted-foreground">
+            Play free. Keep your best score. See where you rank this week.
+          </p>
         </section>
 
-        {!paid && (
-          <ul className="mx-auto w-fit space-y-2 text-sm text-muted-foreground">
-            {ENTRY_BENEFITS.map((b) => (
-              <li key={b}>
-                <span className="text-primary">✓</span> {b}
-              </li>
-            ))}
-          </ul>
-        )}
+        {!hasIdentity && (
+          <>
+            <ul className="mx-auto w-fit space-y-2 text-sm text-muted-foreground">
+              {["Free to play", "Weekly leaderboard", "Friend challenges", "Shareable score"].map((b) => (
+                <li key={b}>
+                  <span className="text-primary">✓</span> {b}
+                </li>
+              ))}
+            </ul>
 
-        {!paid && (
-          <section className="space-y-3">
-            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
-              Nickname
-              <input
-                value={nickname}
-                maxLength={18}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="PINTU"
-                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
-              />
-            </label>
-            <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
-              Country
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
-              >
-                <option value="">Prefer not to say</option>
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </section>
+            <section className="space-y-3">
+              <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                Nickname
+                <input
+                  value={nickname}
+                  maxLength={18}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="PINTU"
+                  className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+                />
+              </label>
+              <label className="block text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                Country
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="mt-2 w-full rounded border border-input bg-secondary px-4 py-3 text-base tracking-normal text-foreground normal-case outline-none focus:border-primary"
+                >
+                  <option value="">Prefer not to say</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          </>
         )}
 
         <button
@@ -477,11 +392,11 @@ function PlayPage() {
           disabled={busy}
           onClick={() => {
             track("challenge_cta_clicked");
-            void (paid ? beginAttempt() : pay());
+            void (hasIdentity ? beginAttempt() : playFree());
           }}
           className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
         >
-          {busy ? "One moment…" : paid ? "Start official attempt" : payFailed ? "Try again" : BRAND.payCta}
+          {busy ? "One moment…" : "PLAY FREE"}
         </button>
 
         <p className="text-center text-xs leading-relaxed text-muted-foreground">

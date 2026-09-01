@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND, tierFor } from "@/lib/config";
-import { getLeaderboard } from "@/lib/api.functions";
+import { getLeaderboard, getWeeklyLeaderboard } from "@/lib/api.functions";
 import { getStoredProfileId } from "@/lib/player";
 
 export const Route = createFileRoute("/leaderboard")({
@@ -34,6 +34,11 @@ function LeaderboardPage() {
       getLeaderboard({ data: scope === "country" ? { scope, country: "India", profileId } : { scope, profileId } }),
     staleTime: 15000,
   });
+  const { data: weekly } = useQuery({
+    queryKey: ["weekly-leaderboard"],
+    queryFn: () => getWeeklyLeaderboard(),
+    staleTime: 20000,
+  });
 
   const you = "you" in (data ?? {}) ? (data as { you: unknown }).you : null;
   const youRow = you && typeof you === "object" ? (you as { rank: number; best_score: number }) : null;
@@ -45,6 +50,34 @@ function LeaderboardPage() {
         <h1 className="pixel py-8 text-center text-[12px] text-primary sm:text-base">
           WHO&apos;S STILL GOT IT?
         </h1>
+
+        <section className="mb-10">
+          <h2 className="pixel text-[11px] text-primary sm:text-sm">THIS WEEK'S TOP 3</h2>
+          <p className="mt-2 text-xs text-muted-foreground">
+            This week's top 3 players are rewarded by this week's sponsors.
+          </p>
+          <ol className="mt-4 divide-y divide-border border-y border-border">
+            {(weekly?.rows ?? []).slice(0, 3).map((row: any) => (
+              <li key={row.profileId as string} className="flex items-center gap-3 py-3 text-sm">
+                <span className="w-10 text-left font-mono font-bold text-primary">#{row.rank}</span>
+                <span className="flex-1 truncate font-bold uppercase tracking-wide">{row.nickname as string}</span>
+                <span className="hidden w-32 truncate text-xs text-muted-foreground sm:block">
+                  {(row.country as string) || "Unknown"}
+                </span>
+                <span className="w-20 text-right font-mono font-bold tabular-nums">
+                  {(row.score as number).toLocaleString()}
+                </span>
+              </li>
+            ))}
+            {!weekly?.rows?.length && (
+              <li className="py-6 text-center text-sm text-muted-foreground">
+                No scores yet this week. The first name on this board could be yours.
+              </li>
+            )}
+          </ol>
+        </section>
+
+        <h2 className="pixel pb-4 text-center text-[11px] text-muted-foreground sm:text-sm">ALL-TIME</h2>
 
         <div className="grid grid-cols-3 border border-border text-xs tracking-widest uppercase">
           {(["global", "country", "friends"] as Scope[]).map((s) => (

@@ -220,6 +220,33 @@ export type Database = {
           },
         ]
       }
+      game_weeks: {
+        Row: {
+          created_at: string
+          game_key: string
+          id: string
+          status: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          game_key?: string
+          id?: string
+          status?: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          game_key?: string
+          id?: string
+          status?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -405,12 +432,212 @@ export type Database = {
           },
         ]
       }
+      sponsor_auctions: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          min_bid: number
+          min_increment: number
+          starts_at: string
+          status: string
+          week_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          min_bid?: number
+          min_increment?: number
+          starts_at: string
+          status?: string
+          week_id: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          min_bid?: number
+          min_increment?: number
+          starts_at?: string
+          status?: string
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_auctions_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: true
+            referencedRelation: "game_weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsor_bids: {
+        Row: {
+          amount: number
+          auction_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          payment_reference: string | null
+          payment_status: string
+          reward_description: string
+          sponsor_contact: string
+          sponsor_name: string
+        }
+        Insert: {
+          amount: number
+          auction_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payment_reference?: string | null
+          payment_status?: string
+          reward_description: string
+          sponsor_contact: string
+          sponsor_name: string
+        }
+        Update: {
+          amount?: number
+          auction_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payment_reference?: string | null
+          payment_status?: string
+          reward_description?: string
+          sponsor_contact?: string
+          sponsor_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_bids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "sponsor_auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_results: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          rank: number
+          reward_description: string | null
+          score: number
+          sponsor_bid_id: string | null
+          week_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          rank: number
+          reward_description?: string | null
+          score: number
+          sponsor_bid_id?: string | null
+          week_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          rank?: number
+          reward_description?: string | null
+          score?: number
+          sponsor_bid_id?: string | null
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_results_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_results_sponsor_bid_id_fkey"
+            columns: ["sponsor_bid_id"]
+            isOneToOne: false
+            referencedRelation: "sponsor_bids"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_results_sponsor_bid_id_fkey"
+            columns: ["sponsor_bid_id"]
+            isOneToOne: false
+            referencedRelation: "sponsor_standings"
+            referencedColumns: ["bid_id"]
+          },
+          {
+            foreignKeyName: "weekly_results_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "game_weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      sponsor_standings: {
+        Row: {
+          amount: number | null
+          auction_id: string | null
+          bid_id: string | null
+          created_at: string | null
+          reward_description: string | null
+          sponsor_name: string | null
+        }
+        Insert: {
+          amount?: number | null
+          auction_id?: string | null
+          bid_id?: string | null
+          created_at?: string | null
+          reward_description?: string | null
+          sponsor_name?: string | null
+        }
+        Update: {
+          amount?: number | null
+          auction_id?: string | null
+          bid_id?: string | null
+          created_at?: string | null
+          reward_description?: string | null
+          sponsor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsor_bids_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "sponsor_auctions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      consume_attempt: {
+        Args: {
+          p_game_version: string
+          p_profile_id: string
+          p_session_token_hash: string
+        }
+        Returns: Json
+      }
+      get_weekly_leaderboard: {
+        Args: { p_limit?: number; p_week_id: string }
+        Returns: {
+          best_score: number
+          country: string
+          nickname: string
+          profile_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
