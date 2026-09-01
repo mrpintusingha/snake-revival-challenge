@@ -1,8 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Phone, PhoneRef } from "@/components/ui/Phone";
-import { useRef } from "react";
-
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SnakeGame } from "@/components/game/SnakeGame";
@@ -64,17 +61,10 @@ function PlayPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
-  const phoneRef = useRef<PhoneRef>(null);
-  const [gameCanvas, setGameCanvas] = useState<HTMLCanvasElement | null>(null);
   const [payFailed, setPayFailed] = useState(false);
 
   const fnEntry = useServerFn(getEntry);
   const fnCheckout = useServerFn(startCheckout);
-  useEffect(() => {
-    if (phase === "game" && phoneRef.current) {
-      setGameCanvas(phoneRef.current.getCanvas());
-    }
-  }, [phase]);
   const fnStart = useServerFn(startAttempt);
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
