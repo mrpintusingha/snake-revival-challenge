@@ -8,6 +8,8 @@ type Props = {
   state: SnakeState;
   overlay?: Overlay;
   className?: string;
+  /** Fill the parent box exactly instead of keeping the native COLS:ROWS aspect ratio. */
+  stretch?: boolean;
 };
 
 const CELL = 12;
@@ -16,7 +18,7 @@ const W = COLS * CELL + PAD * 2;
 const H = ROWS * CELL + PAD * 2;
 
 /** Monochrome LCD renderer shared by the teaser and the official game. */
-export function LcdScreen({ state, overlay = null, className }: Props) {
+export function LcdScreen({ state, overlay = null, className, stretch = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -65,8 +67,12 @@ export function LcdScreen({ state, overlay = null, className }: Props) {
     <canvas
       ref={canvasRef}
       aria-label="Snake game screen"
-      className={cn("block h-auto w-full [image-rendering:pixelated]", className)}
-      style={{ aspectRatio: `${W} / ${H}` }}
+      className={cn(
+        stretch ? "block h-full w-full" : "block h-auto w-full",
+        "[image-rendering:pixelated]",
+        className,
+      )}
+      style={stretch ? undefined : { aspectRatio: `${W} / ${H}` }}
     />
   );
 }

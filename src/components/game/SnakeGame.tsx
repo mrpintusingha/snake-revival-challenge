@@ -139,6 +139,13 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
     turn(stateRef.current, dir);
   }, [phase, triggerGameOverTransition]);
 
+  // The phone's OK/select key: only ever meaningful once game-over is
+  // awaiting acknowledgement — must not fire triggerGameOverTransition
+  // unguarded, since that forces phase to "submitting" regardless of phase.
+  const handleSelect = useCallback(() => {
+    if (phase === "awaiting-continue") triggerGameOverTransition();
+  }, [phase, triggerGameOverTransition]);
+
   // Keyboard
   useEffect(() => {
     const keys: Record<string, Dir> = {
@@ -216,6 +223,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
     >
       <NokiaFrame
         onDirection={input}
+        onSelect={handleSelect}
         topContent={
           <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
             <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
@@ -230,7 +238,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
           </div>
         }
       >
-        <LcdScreen state={s} overlay={overlay} className="rounded-[0.4rem] shadow-[inset_0_0_12px_rgba(0,0,0,0.55)]" />
+        <LcdScreen state={s} overlay={overlay} stretch />
       </NokiaFrame>
 
       <div className="mt-4 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">

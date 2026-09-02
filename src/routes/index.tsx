@@ -336,6 +336,7 @@ function Landing() {
           <LcdScreen
             state={idleState}
             overlay={{ lines: ["READY?", "ARROW keys / swipe", "to move."] }}
+            stretch
           />
         </NokiaFrame>
         <button

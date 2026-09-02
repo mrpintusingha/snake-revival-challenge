@@ -25,6 +25,18 @@ export function Footer() {
     <footer className="mx-auto mt-16 w-full max-w-3xl border-t border-border px-5 py-8 text-xs leading-relaxed text-muted-foreground">
       <p>{BRAND.disclaimer}</p>
       <p className="mt-2">{BRAND.legal}</p>
+      <p className="mt-2">
+        Nokia 1100 photo by Haxorjoe,{" "}
+        <a
+          href="https://commons.wikimedia.org/wiki/File:Nokia1100_new.jpg"
+          target="_blank"
+          rel="noopener"
+          className="underline hover:text-foreground"
+        >
+          CC BY-SA 3.0
+        </a>
+        .
+      </p>
       <p className="mt-3 flex flex-wrap gap-4">
         <Link to="/leaderboard" className="hover:text-foreground">
           Leaderboard
