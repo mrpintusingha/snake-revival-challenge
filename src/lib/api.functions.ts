@@ -697,107 +697,124 @@ export const submitScore = createServerFn({ method: "POST" })
       elapsed >= foods * MIN_MS_PER_FOOD * 0.7 &&
       data.reportedScore === score;
     const status = plausible ? "verified" : "flagged";
+    const tier = tierFor(score);
 
-    await db
-      .from("game_sessions")
-      .update({
-        ended_at: new Date().toISOString(),
-        score,
-        status: expired ? "expired" : "completed",
-        verified: plausible,
-        verification_status: status,
-      })
-      .eq("id", session.id);
+    // Wave 1: none of these depend on each other — only on the session data
+    // and the score/status/tier already computed above. Submitting a score
+    // used to mean ~10 sequential round trips to Supabase (each one waiting
+    // on the last); grouping the independent ones into a few parallel waves
+    // is what actually took the game-over -> result screen from ~5-6s to
+    // roughly the time of the single slowest call in each wave.
+    const [, scoreInsert, profileRow, achievementRow] = await Promise.all([
+      db
+        .from("game_sessions")
+        .update({
+          ended_at: new Date().toISOString(),
+          score,
+          status: expired ? "expired" : "completed",
+          verified: plausible,
+          verification_status: status,
+        })
+        .eq("id", session.id),
+      db
+        .from("scores")
+        .insert({
+          profile_id: playerId,
+          game_session_id: session.id,
+          score,
+          status,
+          verified_at: plausible ? new Date().toISOString() : null,
+        })
+        .select("id")
+        .single(),
+      db
+        .from("profiles")
+        .select("id, nickname, country, best_score, games_played")
+        .eq("id", playerId)
+        .single(),
+      db.from("achievements").select("id").eq("name", tier).maybeSingle(),
+    ]);
 
-    const { data: scoreRow } = await db
-      .from("scores")
-      .insert({
-        profile_id: playerId,
-        game_session_id: session.id,
-        score,
-        status,
-        verified_at: plausible ? new Date().toISOString() : null,
-      })
-      .select("id")
-      .single();
-
-    const { data: profile } = await db
-      .from("profiles")
-      .select("id, nickname, country, best_score, games_played")
-      .eq("id", playerId)
-      .single();
+    const scoreRow = scoreInsert.data;
+    const profile = profileRow.data;
+    const achievement = achievementRow.data;
 
     const previousBest = profile?.best_score ?? 0;
     const isBest = plausible && score > previousBest;
-    await db
-      .from("profiles")
-      .update({
-        best_score: isBest ? score : previousBest,
-        games_played: (profile?.games_played ?? 0) + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", playerId);
-
     const best = isBest ? score : previousBest;
 
-    // Ranks. Tie-break rule: equal best scores share the same rank, and the
+    // Wave 2: everything here only needs Wave 1's results, not each other.
+    // Ranks tie-break rule: equal best scores share the same rank, and the
     // rank is "number of players strictly above me, plus one".
-    const [{ count: betterGlobal }, countryRank, { count: totalPlayers }] = await Promise.all([
-      db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", best),
-      profile?.country
+    const [, rankCounts] = await Promise.all([
+      db
+        .from("profiles")
+        .update({
+          best_score: best,
+          games_played: (profile?.games_played ?? 0) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", playerId),
+      Promise.all([
+        db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", best),
+        profile?.country
+          ? db
+              .from("profiles")
+              .select("id", { count: "exact", head: true })
+              .eq("country", profile.country)
+              .gt("best_score", best)
+          : Promise.resolve({ count: null as number | null }),
+        db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", 0),
+      ]),
+      achievement
         ? db
-            .from("profiles")
-            .select("id", { count: "exact", head: true })
-            .eq("country", profile.country)
-            .gt("best_score", best)
-        : Promise.resolve({ count: null }),
-      db.from("profiles").select("id", { count: "exact", head: true }).gt("best_score", 0),
+            .from("player_achievements")
+            .upsert(
+              { profile_id: playerId, achievement_id: achievement.id },
+              { onConflict: "profile_id,achievement_id", ignoreDuplicates: true },
+            )
+        : Promise.resolve(null),
     ]);
 
+    const [{ count: betterGlobal }, countryRank, { count: totalPlayers }] = rankCounts;
     const rankGlobal = (betterGlobal ?? 0) + 1;
     const total = Math.max(totalPlayers ?? 1, 1);
     const percentile = Math.max(0, Math.min(99, Math.round(((total - rankGlobal) / total) * 100)));
-    const tier = tierFor(score);
 
+    // Wave 3: writes that need the ranks just computed — independent of
+    // each other, and purely bookkeeping (the response below doesn't wait
+    // on any of these having landed).
+    const bookkeeping: PromiseLike<unknown>[] = [];
     if (scoreRow?.id) {
-      await db
-        .from("scores")
-        .update({
-          global_rank: rankGlobal,
-          country_rank: countryRank.count == null ? null : countryRank.count + 1,
-        })
-        .eq("id", scoreRow.id);
+      bookkeeping.push(
+        db
+          .from("scores")
+          .update({
+            global_rank: rankGlobal,
+            country_rank: countryRank.count == null ? null : countryRank.count + 1,
+          })
+          .eq("id", scoreRow.id),
+      );
     }
-
-    // Achievement unlock
-    const { data: achievement } = await db
-      .from("achievements")
-      .select("id")
-      .eq("name", tier)
-      .maybeSingle();
-    if (achievement) {
-      await db
-        .from("player_achievements")
-        .upsert(
-          { profile_id: playerId, achievement_id: achievement.id },
-          { onConflict: "profile_id,achievement_id", ignoreDuplicates: true },
-        );
-    }
-
     if (plausible && score > 0) {
-      await db.from("activity_events").insert({
-        profile_id: playerId,
-        event_type: "score",
-        metadata: { nickname: profile?.nickname, score, rank: rankGlobal },
-      });
-      if (rankGlobal <= 100) {
-        await db.from("activity_events").insert({
+      bookkeeping.push(
+        db.from("activity_events").insert({
           profile_id: playerId,
-          event_type: "top100",
-          metadata: { nickname: profile?.nickname, rank: rankGlobal },
-        });
+          event_type: "score",
+          metadata: { nickname: profile?.nickname, score, rank: rankGlobal },
+        }),
+      );
+      if (rankGlobal <= 100) {
+        bookkeeping.push(
+          db.from("activity_events").insert({
+            profile_id: playerId,
+            event_type: "top100",
+            metadata: { nickname: profile?.nickname, rank: rankGlobal },
+          }),
+        );
       }
     }
+    await Promise.all(bookkeeping);
 
     return {
       score,
