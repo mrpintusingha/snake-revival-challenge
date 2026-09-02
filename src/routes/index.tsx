@@ -251,7 +251,7 @@ function Landing() {
               <button
                 type="button"
                 onClick={() => void beginAttempt()}
-                className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
+                className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-black px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
               >
                 Play again
               </button>
@@ -373,7 +373,7 @@ function Landing() {
             type="button"
             disabled={busy}
             onClick={() => void beginAttempt()}
-            className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-6 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86] disabled:opacity-60"
+            className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-black px-6 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86] disabled:opacity-60"
           >
             {busy ? "One moment…" : "Start"}
           </button>

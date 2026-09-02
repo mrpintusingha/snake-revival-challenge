@@ -247,7 +247,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
           <button
             type="button"
             onClick={triggerGameOverTransition}
-            className="absolute bottom-[10%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
+            className="absolute bottom-[10%] left-1/2 -translate-x-1/2 rounded bg-black px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
           >
             Continue
           </button>
