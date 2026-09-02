@@ -11,7 +11,7 @@ import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND } from "@/lib/config";
-import { createState } from "@/lib/snake-engine";
+import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
@@ -91,7 +91,28 @@ function Landing() {
     };
   }, [fnEntry]);
 
-  const idleState = useMemo(() => createState(20250101), []);
+  const idleState = useMemo<SnakeState>(
+    () => ({
+      // A hand-placed coil, purely decorative — sits below the "READY?" band.
+      snake: [
+        { x: 4, y: 10 }, { x: 5, y: 10 }, { x: 6, y: 10 }, { x: 7, y: 10 }, { x: 8, y: 10 },
+        { x: 9, y: 10 }, { x: 10, y: 10 }, { x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 },
+        { x: 13, y: 11 }, { x: 13, y: 12 },
+        { x: 12, y: 12 }, { x: 11, y: 12 }, { x: 10, y: 12 }, { x: 9, y: 12 }, { x: 8, y: 12 },
+        { x: 7, y: 12 }, { x: 6, y: 12 }, { x: 5, y: 12 },
+        { x: 5, y: 13 }, { x: 5, y: 14 },
+        { x: 6, y: 14 }, { x: 7, y: 14 }, { x: 8, y: 14 },
+      ],
+      dir: "right",
+      queued: [],
+      food: { x: -5, y: -5 },
+      foods: 0,
+      score: 0,
+      over: false,
+      rng: () => 0,
+    }),
+    [],
+  );
 
   const beginAttempt = useCallback(async () => {
     setBusy(true);
@@ -335,7 +356,8 @@ function Landing() {
         <NokiaFrame>
           <LcdScreen
             state={idleState}
-            overlay={{ lines: ["READY?", "ARROW keys / swipe", "to move."] }}
+            overlay={{ lines: ["READY?", "ARROWS / SWIPE TO MOVE"] }}
+            overlayAlign="top"
             stretch
           />
         </NokiaFrame>

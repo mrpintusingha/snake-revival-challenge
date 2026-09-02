@@ -10,6 +10,8 @@ type Props = {
   className?: string;
   /** Fill the parent box exactly instead of keeping the native COLS:ROWS aspect ratio. */
   stretch?: boolean;
+  /** Band position for the overlay text — "top" leaves the lower screen clear for art underneath. */
+  overlayAlign?: "center" | "top";
 };
 
 const CELL = 12;
@@ -18,7 +20,7 @@ const W = COLS * CELL + PAD * 2;
 const H = ROWS * CELL + PAD * 2;
 
 /** Monochrome LCD renderer shared by the teaser and the official game. */
-export function LcdScreen({ state, overlay = null, className, stretch = false }: Props) {
+export function LcdScreen({ state, overlay = null, className, stretch = false, overlayAlign = "center" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -51,14 +53,17 @@ export function LcdScreen({ state, overlay = null, className, stretch = false }:
     }
 
     if (overlay && overlay.lines.length) {
+      const bandH = 52 * overlay.lines.length;
+      const bandY = overlayAlign === "top" ? 0 : H / 2 - bandH / 2;
+      const centerY = bandY + bandH / 2;
       ctx.fillStyle = "rgba(158,173,134,0.85)";
-      ctx.fillRect(0, H / 2 - 26 * overlay.lines.length, W, 52 * overlay.lines.length);
+      ctx.fillRect(0, bandY, W, bandH);
       ctx.fillStyle = fg;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.font = "bold 13px ui-monospace, monospace";
       overlay.lines.forEach((line, i) => {
-        ctx.fillText(line, W / 2, H / 2 + (i - (overlay.lines.length - 1) / 2) * 18);
+        ctx.fillText(line, W / 2, centerY + (i - (overlay.lines.length - 1) / 2) * 18);
       });
     }
   });
