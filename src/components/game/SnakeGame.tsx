@@ -215,6 +215,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
       onTouchMove={onTouchMove}
     >
       <NokiaFrame
+        onDirection={input}
         topContent={
           <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
             <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
@@ -232,9 +233,9 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
         <LcdScreen state={s} overlay={overlay} className="rounded-[0.4rem] shadow-[inset_0_0_12px_rgba(0,0,0,0.55)]" />
       </NokiaFrame>
 
-      <div className="mt-6 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">
-        <span className="hidden sm:inline">← ↑ ↓ →  MOVE</span>
-        <span className="sm:hidden">SWIPE TO MOVE</span>
+      <div className="mt-4 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">
+        <span className="hidden sm:inline">ARROW KEYS / D-PAD · MOVE</span>
+        <span className="sm:hidden">SWIPE OR TAP D-PAD</span>
       </div>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
