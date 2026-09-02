@@ -95,13 +95,13 @@ function Landing() {
     () => ({
       // A hand-placed coil, purely decorative — sits below the "READY?" band.
       snake: [
-        { x: 4, y: 10 }, { x: 5, y: 10 }, { x: 6, y: 10 }, { x: 7, y: 10 }, { x: 8, y: 10 },
-        { x: 9, y: 10 }, { x: 10, y: 10 }, { x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 },
-        { x: 13, y: 11 }, { x: 13, y: 12 },
-        { x: 12, y: 12 }, { x: 11, y: 12 }, { x: 10, y: 12 }, { x: 9, y: 12 }, { x: 8, y: 12 },
-        { x: 7, y: 12 }, { x: 6, y: 12 }, { x: 5, y: 12 },
-        { x: 5, y: 13 }, { x: 5, y: 14 },
-        { x: 6, y: 14 }, { x: 7, y: 14 }, { x: 8, y: 14 },
+        { x: 4, y: 9 }, { x: 5, y: 9 }, { x: 6, y: 9 }, { x: 7, y: 9 }, { x: 8, y: 9 },
+        { x: 9, y: 9 }, { x: 10, y: 9 }, { x: 11, y: 9 }, { x: 12, y: 9 }, { x: 13, y: 9 },
+        { x: 13, y: 10 }, { x: 13, y: 11 },
+        { x: 12, y: 11 }, { x: 11, y: 11 }, { x: 10, y: 11 }, { x: 9, y: 11 }, { x: 8, y: 11 },
+        { x: 7, y: 11 }, { x: 6, y: 11 }, { x: 5, y: 11 },
+        { x: 5, y: 12 }, { x: 5, y: 13 },
+        { x: 6, y: 13 }, { x: 7, y: 13 }, { x: 8, y: 13 },
       ],
       dir: "right",
       queued: [],
@@ -228,6 +228,7 @@ function Landing() {
             initialCheckpoint={initialCheckpoint}
             attemptNumber={attemptNumber}
             onGameOver={onGameOver}
+            onAbort={() => setPhase("idle")}
           />
         </div>
       );
@@ -238,6 +239,24 @@ function Landing() {
       const url = code ? challengeUrl(code) : typeof window !== "undefined" ? window.location.origin : "";
       return (
         <div className="rise space-y-6">
+          <div className="flex flex-col items-center">
+            <NokiaFrame onPlay={() => void beginAttempt()} onReset={() => setPhase("idle")}>
+              <LcdScreen
+                state={idleState}
+                overlay={{ lines: ["GAME OVER", `SCORE ${score.toLocaleString()}`] }}
+                overlayAlign="top"
+                stretch
+              />
+              <button
+                type="button"
+                onClick={() => void beginAttempt()}
+                className="absolute bottom-[4%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
+              >
+                Play again
+              </button>
+            </NokiaFrame>
+          </div>
+
           {!hasIdentity && result && (
             <section className="rounded border border-primary/60 p-4 text-center">
               <p className="text-xs font-bold tracking-widest text-primary uppercase">Save your score</p>
@@ -335,17 +354,6 @@ function Landing() {
               <ScoreCard score={score} rank={result.rankGlobal} nickname={result.nickname} tier={result.tier} />
             </div>
           )}
-
-          <section className="space-y-3 pt-4 border-t border-border">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void beginAttempt()}
-              className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
-            >
-              {busy ? "One moment…" : "Play again"}
-            </button>
-          </section>
         </div>
       );
     }
@@ -353,22 +361,22 @@ function Landing() {
     // phase === "idle" — the game is just... there. No form, no click-through.
     return (
       <div className="flex flex-col items-center">
-        <NokiaFrame>
+        <NokiaFrame onPlay={() => void beginAttempt()}>
           <LcdScreen
             state={idleState}
             overlay={{ lines: ["READY?", "ARROWS / SWIPE TO MOVE"] }}
             overlayAlign="top"
             stretch
           />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void beginAttempt()}
+            className="absolute bottom-[4%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-6 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86] disabled:opacity-60"
+          >
+            {busy ? "One moment…" : "Start"}
+          </button>
         </NokiaFrame>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void beginAttempt()}
-          className="mt-6 w-full max-w-[300px] rounded bg-primary px-6 py-4 text-base font-bold tracking-wide text-primary-foreground uppercase transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-        >
-          {busy ? "One moment…" : "START"}
-        </button>
       </div>
     );
   })();

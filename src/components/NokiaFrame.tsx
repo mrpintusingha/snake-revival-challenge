@@ -6,6 +6,8 @@ export function NokiaFrame({
   topContent,
   onDirection,
   onSelect,
+  onPlay,
+  onReset,
 }: {
   children: ReactNode;
   topContent?: ReactNode;
@@ -13,6 +15,10 @@ export function NokiaFrame({
   onDirection?: ((dir: Dir) => void) | undefined;
   /** Wires the D-pad's center key — used to continue past game over. */
   onSelect?: (() => void) | undefined;
+  /** Left soft key. */
+  onReset?: (() => void) | undefined;
+  /** Right soft key. */
+  onPlay?: (() => void) | undefined;
 }) {
   return (
     <div className="relative mx-auto w-full max-w-[300px] select-none">
@@ -31,7 +37,7 @@ export function NokiaFrame({
 
         {/* Screen — reuses the app's own lcd-panel/lcd-texture utilities */}
         <div className="lcd-panel overflow-hidden rounded-[10px]">
-          <div className="lcd-texture flex aspect-[20/16] items-center justify-center">
+          <div className="lcd-texture relative flex aspect-[20/16] items-center justify-center">
             {children}
           </div>
         </div>
@@ -40,9 +46,13 @@ export function NokiaFrame({
 
         {/* Controls */}
         <div className="mt-5 flex items-center justify-center gap-[22px]">
-          <span className="h-[30px] w-[30px] shrink-0 rounded-full border border-border bg-secondary" />
+          <SoftKey label="Reset" onPress={onReset}>
+            ↺
+          </SoftKey>
           <DPad onDirection={onDirection} onSelect={onSelect} />
-          <span className="h-[30px] w-[30px] shrink-0 rounded-full border border-border bg-secondary" />
+          <SoftKey label="Play" onPress={onPlay}>
+            ▶
+          </SoftKey>
         </div>
 
         {/* Keypad, decorative */}
@@ -59,6 +69,20 @@ export function NokiaFrame({
 }
 
 const KEYPAD = ["1", "2 abc", "3 def", "4 ghi", "5 jkl", "6 mno", "7 pqrs", "8 tuv", "9 wxyz", "*", "0", "#"];
+
+function SoftKey({ label, onPress, children }: { label: string; onPress?: (() => void) | undefined; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      tabIndex={-1}
+      onClick={() => onPress?.()}
+      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[11px] text-primary active:bg-accent"
+    >
+      {children}
+    </button>
+  );
+}
 
 function DPad({
   onDirection,

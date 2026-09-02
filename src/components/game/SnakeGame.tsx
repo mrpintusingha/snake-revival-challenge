@@ -12,9 +12,11 @@ type Props = {
   initialCheckpoint: string;
   attemptNumber: number;
   onGameOver: (result: { score: number; foods: number; durationMs: number; checkpoint: string }) => void;
+  /** Bails out of the current attempt (no score submitted) back to the ready screen. */
+  onAbort?: (() => void) | undefined;
 };
 
-export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGameOver }: Props) {
+export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGameOver, onAbort }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
   const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
@@ -224,6 +226,8 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
       <NokiaFrame
         onDirection={input}
         onSelect={handleSelect}
+        onPlay={phase === "awaiting-continue" ? triggerGameOverTransition : undefined}
+        onReset={onAbort}
         topContent={
           <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
             <span className="font-mono tabular-nums">SCORE {s.score.toLocaleString()}</span>
@@ -239,6 +243,15 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
         }
       >
         <LcdScreen state={s} overlay={overlay} stretch />
+        {phase === "awaiting-continue" && (
+          <button
+            type="button"
+            onClick={triggerGameOverTransition}
+            className="absolute bottom-[10%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
+          >
+            Continue
+          </button>
+        )}
       </NokiaFrame>
 
       <div className="mt-4 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">
@@ -249,16 +262,6 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
       <p className="mt-3 text-center text-xs text-muted-foreground">
         Attempt {attemptNumber}
       </p>
-
-      {phase === "awaiting-continue" && (
-        <button
-          type="button"
-          onClick={triggerGameOverTransition}
-          className="mt-4 w-full rounded bg-primary px-6 py-4 text-sm font-bold uppercase tracking-wide text-primary-foreground"
-        >
-          Continue
-        </button>
-      )}
     </div>
   );
 }
