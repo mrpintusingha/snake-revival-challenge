@@ -1,17 +1,6 @@
 import { ReactNode } from "react";
 import type { Dir } from "@/lib/snake-engine";
 
-/**
- * Positions are percentages of the phone photo's own box (public/phone/nokia-1100.jpg),
- * measured directly against the image pixels. Keep in sync if the photo changes.
- */
-const SCREEN = { left: 15.5, top: 26.6, width: 73.3, height: 22.7 };
-const UP = { left: 64.7, top: 52.5, width: 32.8, height: 6.9 };
-const DOWN = { left: 64.7, top: 59.4, width: 32.8, height: 6.9 };
-const LEFT = { left: 2.6, top: 73.4, width: 32.8, height: 6.4 };
-const RIGHT = { left: 64.7, top: 73.4, width: 32.8, height: 6.4 };
-const SELECT = { left: 37.1, top: 52.5, width: 27.6, height: 13.8 };
-
 export function NokiaFrame({
   children,
   topContent,
@@ -20,58 +9,117 @@ export function NokiaFrame({
 }: {
   children: ReactNode;
   topContent?: ReactNode;
-  /** Wires the phone's own D-pad (▲▼ keys, and 4/6 for ◀▶) to the game. Omit for a decorative frame. */
+  /** Wires the D-pad's four arrows to the game. Omit for a decorative frame. */
   onDirection?: ((dir: Dir) => void) | undefined;
-  /** Wires the phone's center/OK key — used to continue past game over. */
+  /** Wires the D-pad's center key — used to continue past game over. */
   onSelect?: (() => void) | undefined;
 }) {
   return (
     <div className="relative mx-auto w-full max-w-[300px] select-none">
-      {topContent && <div className="mb-3">{topContent}</div>}
+      {/* Ambient brand-colored glow behind the shell */}
+      <div
+        className="pointer-events-none absolute -inset-4 rounded-[46px] blur-[2px]"
+        style={{ background: "radial-gradient(60% 55% at 50% 30%, oklch(0.84 0.19 130 / 0.16), transparent 70%)" }}
+      />
 
-      <div className="relative" style={{ overflow: "hidden", borderRadius: "12% / 5%" }}>
-        <img
-          src="/phone/nokia-1100.jpg"
-          alt="Nokia 1100 phone"
-          className="block w-full h-auto"
-          draggable={false}
-        />
-
-        <div className="absolute" style={pct(SCREEN)}>
-          {children}
+      <div className="relative rounded-[34px] border border-border bg-gradient-to-b from-card to-background p-4 pt-[18px] pb-5 shadow-[0_1px_0_var(--border)_inset,0_30px_60px_-20px_rgba(0,0,0,0.7)]">
+        {/* Earpiece grille */}
+        <div className="mb-4 flex justify-center gap-1">
+          <span className="h-[3px] w-[22px] rounded-full bg-border" />
+          <span className="h-[3px] w-[22px] rounded-full bg-border" />
         </div>
 
-        <Hotspot box={UP} label="Up" onPress={() => onDirection?.("up")} />
-        <Hotspot box={DOWN} label="Down" onPress={() => onDirection?.("down")} />
-        <Hotspot box={LEFT} label="Left" onPress={() => onDirection?.("left")} />
-        <Hotspot box={RIGHT} label="Right" onPress={() => onDirection?.("right")} />
-        <Hotspot box={SELECT} label="Select" onPress={() => onSelect?.()} />
+        {/* Screen — reuses the app's own lcd-panel/lcd-texture utilities */}
+        <div className="lcd-panel overflow-hidden rounded-[10px]">
+          <div className="lcd-texture flex aspect-[20/16] items-center justify-center">
+            {children}
+          </div>
+        </div>
+
+        {topContent && <div className="mt-2 px-1">{topContent}</div>}
+
+        {/* Controls */}
+        <div className="mt-5 flex items-center justify-center gap-[22px]">
+          <span className="h-[30px] w-[30px] shrink-0 rounded-full border border-border bg-secondary" />
+          <DPad onDirection={onDirection} onSelect={onSelect} />
+          <span className="h-[30px] w-[30px] shrink-0 rounded-full border border-border bg-secondary" />
+        </div>
+
+        {/* Keypad, decorative */}
+        <div className="mt-[18px] grid grid-cols-3 gap-2">
+          {KEYPAD.map((k) => (
+            <div key={k} className="rounded-[9px] border border-border bg-secondary py-2 text-center">
+              <span className="font-lcd text-[17px] leading-none text-foreground">{k}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function pct(box: { left: number; top: number; width: number; height: number }) {
-  return { left: `${box.left}%`, top: `${box.top}%`, width: `${box.width}%`, height: `${box.height}%` };
+const KEYPAD = ["1", "2 abc", "3 def", "4 ghi", "5 jkl", "6 mno", "7 pqrs", "8 tuv", "9 wxyz", "*", "0", "#"];
+
+function DPad({
+  onDirection,
+  onSelect,
+}: {
+  onDirection?: ((dir: Dir) => void) | undefined;
+  onSelect?: (() => void) | undefined;
+}) {
+  const press = (dir: Dir) => () => onDirection?.(dir);
+  return (
+    <div className="relative h-[84px] w-[84px] shrink-0 rounded-[22px] border border-border bg-gradient-to-b from-secondary to-card shadow-[0_4px_10px_-4px_rgba(0,0,0,0.6)]">
+      <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+        <div />
+        <Key label="Up" onPress={press("up")}>
+          <Arrow dir="up" />
+        </Key>
+        <div />
+        <Key label="Left" onPress={press("left")}>
+          <Arrow dir="left" />
+        </Key>
+        <Key label="Select" onPress={() => onSelect?.()}>
+          <span className="h-[26px] w-[26px] rounded-full border border-primary/50 bg-primary/15" />
+        </Key>
+        <Key label="Right" onPress={press("right")}>
+          <Arrow dir="right" />
+        </Key>
+        <div />
+        <Key label="Down" onPress={press("down")}>
+          <Arrow dir="down" />
+        </Key>
+        <div />
+      </div>
+    </div>
+  );
 }
 
-function Hotspot({
-  box,
-  label,
-  onPress,
-}: {
-  box: { left: number; top: number; width: number; height: number };
-  label: string;
-  onPress: () => void;
-}) {
+function Key({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      tabIndex={-1}
-      onClick={onPress}
-      className="absolute bg-transparent"
-      style={pct(box)}
-    />
+    <button type="button" aria-label={label} tabIndex={-1} onClick={onPress} className="flex items-center justify-center bg-transparent">
+      {children}
+    </button>
+  );
+}
+
+function Arrow({ dir }: { dir: Dir }) {
+  const rotate = { up: 0, right: 90, down: 180, left: 270 }[dir];
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-primary"
+      style={{ transform: `rotate(${rotate}deg)` }}
+      aria-hidden
+    >
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
   );
 }
