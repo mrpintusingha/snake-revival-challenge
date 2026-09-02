@@ -25,6 +25,28 @@ function randomCode(len = 6): string {
   return [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
+const NICKNAME_ADJECTIVES = [
+  "Swift", "Neon", "Retro", "Turbo", "Pixel", "Cyber", "Mega", "Rapid",
+  "Wild", "Cosmic", "Rusty", "Sonic", "Nitro", "Solar", "Silent", "Golden",
+];
+const NICKNAME_NOUNS = [
+  "Viper", "Cobra", "Python", "Mamba", "Racer", "Ranger", "Hunter", "Rider",
+  "Comet", "Rocket", "Blazer", "Striker", "Dasher", "Glider", "Runner", "Coder",
+];
+
+/**
+ * A presentable placeholder name, assigned automatically so a first-time
+ * player's score is never attributed to a bare, collision-prone "Player" —
+ * every leaderboard row gets a real-looking name from the very first game.
+ */
+function randomNickname(): string {
+  const rand = (n: number) => crypto.getRandomValues(new Uint32Array(1))[0]! % n;
+  const adj = NICKNAME_ADJECTIVES[rand(NICKNAME_ADJECTIVES.length)];
+  const noun = NICKNAME_NOUNS[rand(NICKNAME_NOUNS.length)];
+  const num = rand(900) + 100;
+  return `${adj}${noun}${num}`;
+}
+
 const hits = new Map<string, number[]>();
 function rateLimit(key: string, max: number, windowMs: number) {
   const now = Date.now();
@@ -395,7 +417,7 @@ async function upsertProfile(
 ) {
   const { data: existing } = await db
     .from("profiles")
-    .select("id, nickname, country, best_score, games_played")
+    .select("id, nickname, country, best_score, games_played, has_custom_nickname")
     .eq("secret_hash", secretHash)
     .maybeSingle();
 
@@ -406,20 +428,28 @@ async function upsertProfile(
         .update({
           nickname: nickname ?? existing.nickname,
           country: country ?? existing.country,
+          has_custom_nickname: nickname ? true : existing.has_custom_nickname,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
-        .select("id, nickname, country, best_score, games_played")
+        .select("id, nickname, country, best_score, games_played, has_custom_nickname")
         .single();
       return updated ?? existing;
     }
     return existing;
   }
 
+  // No nickname given (the free, zero-friction first-play path) gets a fun
+  // auto-assigned name instead of a bare "Player" — see randomNickname().
   const { data: created, error } = await db
     .from("profiles")
-    .insert({ nickname: nickname ?? "Player", country: country ?? null, secret_hash: secretHash })
-    .select("id, nickname, country, best_score, games_played")
+    .insert({
+      nickname: nickname ?? randomNickname(),
+      country: country ?? null,
+      secret_hash: secretHash,
+      has_custom_nickname: Boolean(nickname),
+    })
+    .select("id, nickname, country, best_score, games_played, has_custom_nickname")
     .single();
   if (error) throw new Error("Could not create player");
   return created;
@@ -545,7 +575,7 @@ export const getEntry = createServerFn({ method: "POST" })
     const hash = await sha256(data.secret);
     const { data: profile } = await db
       .from("profiles")
-      .select("id, nickname, country, best_score, games_played")
+      .select("id, nickname, country, best_score, games_played, has_custom_nickname")
       .eq("secret_hash", hash)
       .maybeSingle();
     if (!profile) return { profile: null, entry: null };

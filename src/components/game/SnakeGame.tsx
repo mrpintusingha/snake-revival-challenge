@@ -10,16 +10,19 @@ import { Volume2, VolumeX } from "lucide-react";
 type Props = {
   sessionToken: string;
   initialCheckpoint: string;
-  attemptNumber: number;
   onGameOver: (result: { score: number; foods: number; durationMs: number; checkpoint: string }) => void;
   /** Bails out of the current attempt (no score submitted) back to the ready screen. */
   onAbort?: (() => void) | undefined;
+  /** Skips the startup splash and 3-2-1 countdown — replays should feel instant. */
+  skipIntro?: boolean;
 };
 
-export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGameOver, onAbort }: Props) {
+export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort, skipIntro = false }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
-  const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">("startup");
+  const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">(
+    skipIntro ? "playing" : "startup",
+  );
   const [count, setCount] = useState(3);
   const startedAt = useRef(0);
   const fnSync = useServerFn(syncCheckpoint);
@@ -258,10 +261,6 @@ export function SnakeGame({ sessionToken, initialCheckpoint, attemptNumber, onGa
         <span className="hidden sm:inline">ARROW KEYS / D-PAD · MOVE</span>
         <span className="sm:hidden">SWIPE OR TAP D-PAD</span>
       </div>
-
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Attempt {attemptNumber}
-      </p>
     </div>
   );
 }

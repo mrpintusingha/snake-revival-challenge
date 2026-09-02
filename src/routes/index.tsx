@@ -72,15 +72,17 @@ function Landing() {
     staleTime: 20000,
   });
 
-  // Silent, non-blocking: learn whether this device already has a name so
-  // the post-game "save your score" prompt only shows to first-timers.
+  // Silent, non-blocking: learn whether this device already picked its own
+  // name so the "customize your name" prompt only shows to first-timers —
+  // everyone gets a fun auto-assigned name from their very first game, so
+  // there's never a bare/anonymous entry on the leaderboard either way.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fnEntry({ data: { secret: getPlayerSecret() } });
         if (cancelled || !res.profile) return;
-        if (res.profile.nickname !== "Player") setHasIdentity(true);
+        if (res.profile.has_custom_nickname) setHasIdentity(true);
         setStoredProfileId(res.profile.id);
       } catch {
         // empty — identity resolves lazily, never blocks play
@@ -119,6 +121,7 @@ function Landing() {
     setBusy(true);
     try {
       const res = await fnStart({ data: { secret: getPlayerSecret() } });
+      const isFirstAttempt = attemptCountRef.current === 0;
       attemptCountRef.current += 1;
       setSessionToken(res.sessionToken);
       setInitialCheckpoint(res.initialCheckpoint);
@@ -126,9 +129,16 @@ function Landing() {
       setResult(null);
       setBattle(null);
       setCode(null);
-      setPhase("transition");
       track("official_game_started", { attempt: attemptCountRef.current });
-      setTimeout(() => setPhase("game"), 1200);
+      // The nostalgic "YOUR CHILDHOOD IS BACK" beat earns its place once, on
+      // the very first game. Replays should feel instant — every artificial
+      // delay here is friction between "I died" and "I'm playing again".
+      if (isFirstAttempt) {
+        setPhase("transition");
+        setTimeout(() => setPhase("game"), 1200);
+      } else {
+        setPhase("game");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not start the game");
     } finally {
@@ -227,7 +237,7 @@ function Landing() {
             key={sessionToken}
             sessionToken={sessionToken}
             initialCheckpoint={initialCheckpoint}
-            attemptNumber={attemptNumber}
+            skipIntro={attemptNumber > 1}
             onGameOver={onGameOver}
             onAbort={() => setPhase("idle")}
           />
@@ -260,13 +270,15 @@ function Landing() {
 
           {!hasIdentity && result && (
             <section className="rounded border border-primary/60 p-4 text-center">
-              <p className="text-xs font-bold tracking-widest text-primary uppercase">Save your score</p>
+              <p className="text-xs font-bold tracking-widest text-primary uppercase">
+                You're playing as {result.nickname} — pick your own name?
+              </p>
               <div className="mt-3 flex gap-2">
                 <input
                   value={saveName}
                   maxLength={18}
                   onChange={(e) => setSaveName(e.target.value)}
-                  placeholder="Your nickname"
+                  placeholder={result.nickname}
                   className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
                 <button
