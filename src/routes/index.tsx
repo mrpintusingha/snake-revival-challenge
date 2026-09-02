@@ -93,15 +93,16 @@ function Landing() {
 
   const idleState = useMemo<SnakeState>(
     () => ({
-      // A hand-placed coil, purely decorative — sits below the "READY?" band.
+      // A hand-placed coil, purely decorative — sits below the Start/Play
+      // Again button, which itself sits right under the READY?/GAME OVER band.
       snake: [
-        { x: 4, y: 9 }, { x: 5, y: 9 }, { x: 6, y: 9 }, { x: 7, y: 9 }, { x: 8, y: 9 },
-        { x: 9, y: 9 }, { x: 10, y: 9 }, { x: 11, y: 9 }, { x: 12, y: 9 }, { x: 13, y: 9 },
-        { x: 13, y: 10 }, { x: 13, y: 11 },
-        { x: 12, y: 11 }, { x: 11, y: 11 }, { x: 10, y: 11 }, { x: 9, y: 11 }, { x: 8, y: 11 },
-        { x: 7, y: 11 }, { x: 6, y: 11 }, { x: 5, y: 11 },
-        { x: 5, y: 12 }, { x: 5, y: 13 },
-        { x: 6, y: 13 }, { x: 7, y: 13 }, { x: 8, y: 13 },
+        { x: 4, y: 12 }, { x: 5, y: 12 }, { x: 6, y: 12 }, { x: 7, y: 12 }, { x: 8, y: 12 },
+        { x: 9, y: 12 }, { x: 10, y: 12 }, { x: 11, y: 12 }, { x: 12, y: 12 }, { x: 13, y: 12 },
+        { x: 13, y: 13 },
+        { x: 13, y: 14 }, { x: 12, y: 14 }, { x: 11, y: 14 }, { x: 10, y: 14 }, { x: 9, y: 14 },
+        { x: 8, y: 14 }, { x: 7, y: 14 }, { x: 6, y: 14 }, { x: 5, y: 14 },
+        { x: 5, y: 15 },
+        { x: 6, y: 15 }, { x: 7, y: 15 }, { x: 8, y: 15 },
       ],
       dir: "right",
       queued: [],
@@ -250,7 +251,7 @@ function Landing() {
               <button
                 type="button"
                 onClick={() => void beginAttempt()}
-                className="absolute bottom-[4%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
+                className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
               >
                 Play again
               </button>
@@ -372,7 +373,7 @@ function Landing() {
             type="button"
             disabled={busy}
             onClick={() => void beginAttempt()}
-            className="absolute bottom-[4%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-6 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86] disabled:opacity-60"
+            className="absolute top-[53%] left-1/2 -translate-x-1/2 rounded bg-[#1b2411] px-6 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86] disabled:opacity-60"
           >
             {busy ? "One moment…" : "Start"}
           </button>
