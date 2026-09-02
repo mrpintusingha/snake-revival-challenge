@@ -42,15 +42,15 @@ export function LcdScreen({ state, overlay = null, className, stretch = false, o
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Full-cell fill (no gap) so adjacent segments merge into one
-    // continuous body, like the original handset's snake.
     ctx.fillStyle = fg;
     for (const seg of state.snake) {
-      ctx.fillRect(PAD + seg.x * CELL, PAD + seg.y * CELL, CELL, CELL);
+      ctx.fillRect(PAD + seg.x * CELL + 1, PAD + seg.y * CELL + 1, CELL - 2, CELL - 2);
     }
 
-    // Food is a small static dot, distinctly smaller than the body — no blink.
-    ctx.fillRect(PAD + state.food.x * CELL + 4, PAD + state.food.y * CELL + 4, CELL - 8, CELL - 8);
+    // Food blinks like the original handset.
+    if (Math.floor(Date.now() / 250) % 2 === 0) {
+      ctx.fillRect(PAD + state.food.x * CELL + 3, PAD + state.food.y * CELL + 3, CELL - 6, CELL - 6);
+    }
 
     if (overlay && overlay.lines.length) {
       const bandH = 52 * overlay.lines.length;
