@@ -36,8 +36,21 @@ export const BRAND = {
   eraWording: "Nokia-era Snake",
   disclaimer: "Not affiliated with or endorsed by Nokia.",
   legal:
-    "Free to play. No cash prizes, no prize pool, no payouts, no betting — this week's top 3 players receive promotional rewards provided by this week's sponsors.",
+    "Free to play. No cash prizes, no prize pool, no payouts, no betting. Sponsor rankings are paid advertising placements, not a prize competition.",
 } as const;
+
+/** Sponsor ladder: a standalone, always-on paid ranking. Not tied to game weeks or scores. */
+export const SPONSOR_CATEGORIES = [
+  "Apps & Tools",
+  "AI & Infrastructure",
+  "Gaming",
+  "Marketing",
+  "Crypto & Web3",
+  "Other",
+] as const;
+
+/** Minimum amount, in whole dollars, a new claim must exceed the current top by. */
+export const SPONSOR_MIN_INCREMENT = 1;
 
 export const GAME_VERSION = "1.0.0";
 

@@ -6,6 +6,8 @@ import {
   ENTRY_PRICE,
   GAME_VERSION,
   MAX_SESSION_DURATION_MS,
+  SPONSOR_CATEGORIES,
+  SPONSOR_MIN_INCREMENT,
   tierFor,
 } from "./config";
 import { MAX_FOODS, MIN_MS_PER_FOOD, scoreForFoods } from "./scoring";
@@ -569,9 +571,9 @@ export const startAttempt = createServerFn({ method: "POST" })
     // the anti-abuse control now that there's no payment wall.
     rateLimit(`attempt:${data.secret.slice(0, 12)}`, 15, 60000);
     const db = await admin();
-    const hash = await sha256(data.secret);
-    const { data: profile } = await db.from("profiles").select("id").eq("secret_hash", hash).maybeSingle();
-    if (!profile) throw new Error("No player found. Enter your name first.");
+    // No pre-game form: a device gets a profile (defaulting to nickname
+    // "Player") the moment it starts its first game, not before.
+    const profile = await upsertProfile(db, await sha256(data.secret));
 
     const token = crypto.randomUUID() + crypto.randomUUID();
     const tokenHash = await sha256(token);
@@ -964,6 +966,143 @@ export const verifyPayment = createServerFn({ method: "POST" })
     }
     if (latest?.status === "pending") return { status: "pending" as const, attemptsRemaining: 0 };
     return { status: "none" as const, attemptsRemaining: 0 };
+  });
+
+/* ---------------------------------------------------------- sponsor ladder */
+/**
+ * Standalone, always-on paid ranking — not tied to game weeks or scores.
+ * Anyone can claim a spot by paying at least SPONSOR_MIN_INCREMENT more than
+ * the current top amount; nobody is ever removed, they just rank lower once
+ * outbid. Rank is always computed live from `sponsor_standings`, never stored.
+ */
+
+const sponsorCategorySchema = z.enum(SPONSOR_CATEGORIES);
+
+let sponsorStandingsCache: { data: any; expiresAt: number } | null = null;
+let sponsorStandingsPromise: Promise<any> | null = null;
+
+export const getSponsorStandings = createServerFn({ method: "GET" }).handler(async () => {
+  const TTL = 15 * 1000;
+  const now = Date.now();
+
+  if (sponsorStandingsCache && now < sponsorStandingsCache.expiresAt) {
+    return sponsorStandingsCache.data;
+  }
+  if (sponsorStandingsPromise) return sponsorStandingsPromise;
+
+  sponsorStandingsPromise = (async () => {
+    try {
+      const db = await publicDb();
+      const { data } = await db
+        .from("sponsor_standings")
+        .select("id, link_url, category, tagline, amount, click_count, created_at")
+        .order("amount", { ascending: false })
+        .limit(50);
+      const rows = data ?? [];
+      sponsorStandingsCache = { data: rows, expiresAt: Date.now() + TTL };
+      return rows;
+    } catch (e) {
+      console.error("[getSponsorStandings] Failed to fetch sponsor standings", e);
+      if (sponsorStandingsCache) return sponsorStandingsCache.data;
+      return [];
+    } finally {
+      sponsorStandingsPromise = null;
+    }
+  })();
+
+  return sponsorStandingsPromise;
+});
+
+export const recordSponsorClick = createServerFn({ method: "POST" })
+  .inputValidator((i: { bidId: string }) => z.object({ bidId: z.string().uuid() }).parse(i))
+  .handler(async ({ data }) => {
+    rateLimit(`sponsor-click:${data.bidId}`, 30, 60000);
+    const db = await admin();
+    await (db.rpc as any)("increment_sponsor_click", { p_bid_id: data.bidId });
+    return { ok: true };
+  });
+
+/**
+ * Claims a rank on the sponsor ladder. The amount is validated and reserved
+ * atomically server-side (see the `claim_sponsor_bid` SQL function) — the
+ * browser's number is never trusted as final. The claim starts `pending` and
+ * only becomes visible on the public ladder once the Dodo webhook confirms
+ * payment, exactly like the player-entry flow.
+ */
+export const claimSponsorRank = createServerFn({ method: "POST" })
+  .inputValidator(
+    (i: { linkUrl: string; category: string; tagline: string; amount: number; returnUrl: string }) =>
+      z
+        .object({
+          linkUrl: z.string().url().max(300),
+          category: sponsorCategorySchema,
+          tagline: z.string().trim().min(4).max(140),
+          amount: z.number().int().min(SPONSOR_MIN_INCREMENT).max(1_000_000),
+          returnUrl: z.string().url().max(500),
+        })
+        .parse(i),
+  )
+  .handler(async ({ data }) => {
+    rateLimit(`sponsor-claim:${data.linkUrl.slice(0, 60)}`, 10, 60000);
+    const db = await admin();
+
+    const { data: bid, error: claimError } = await (db.rpc as any)("claim_sponsor_bid", {
+      p_link_url: data.linkUrl,
+      p_category: data.category,
+      p_tagline: data.tagline,
+      p_amount: data.amount,
+    });
+    if (claimError) {
+      throw new Error(
+        claimError.message?.includes("Bid too low")
+          ? claimError.message
+          : "Could not place your claim. Please try again.",
+      );
+    }
+
+    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
+    const productId = process.env["DODO_SPONSOR_PRODUCT_ID"];
+
+    // No sponsor-specific Dodo product configured yet: run in clearly-marked
+    // test mode so the flow is usable end to end. Real money never moves here.
+    if (!apiKey || !productId) {
+      await db
+        .from("sponsor_bids")
+        .update({ payment_status: "succeeded", is_active: true, payment_reference: `test_${bid.id}` })
+        .eq("id", bid.id);
+      return { mode: "test" as const, bidId: bid.id as string };
+    }
+
+    const res = await fetch(`${DODO_BASE()}/checkouts`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        product_cart: [{ product_id: productId, quantity: Math.round(data.amount) }],
+        return_url: data.returnUrl,
+        metadata: { kind: "sponsor_bid", bid_id: bid.id },
+        customer: { name: data.tagline.slice(0, 60), email: `sponsor+${bid.id}@example.invalid` },
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("[dodo] sponsor checkout failed", res.status, detail);
+      await db.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id);
+      throw new Error(
+        res.status === 401
+          ? "Payment provider rejected our credentials. Please contact support."
+          : "Payment provider unavailable. Please try again.",
+      );
+    }
+    const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string; id?: string };
+    const url = json.checkout_url ?? json.payment_link;
+    if (!url) throw new Error("Payment provider returned no checkout link.");
+
+    const providerId = json.session_id ?? json.id;
+    if (providerId) {
+      await db.from("sponsor_bids").update({ payment_reference: providerId }).eq("id", bid.id);
+    }
+    return { mode: "redirect" as const, url, bidId: bid.id as string };
   });
 
 /** Admin moderation: verify / flag / reject a score and rebuild the player's best. */

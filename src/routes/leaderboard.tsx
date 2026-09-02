@@ -135,7 +135,7 @@ function LeaderboardPage() {
         </ol>
 
         <Link
-          to="/play"
+          to="/"
           className="mt-8 block w-full rounded bg-primary px-6 py-5 text-center text-base font-bold tracking-wide text-primary-foreground uppercase"
         >
           {BRAND.cta}

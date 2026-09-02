@@ -1,49 +1,70 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { SnakeTeaser } from "@/components/SnakeTeaser";
+import { useServerFn } from "@tanstack/react-start";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { SnakeGame } from "@/components/game/SnakeGame";
+import { NokiaFrame } from "@/components/NokiaFrame";
+import { LcdScreen } from "@/components/LcdScreen";
+import { ScoreCard } from "@/components/ScoreCard";
+import { ShareRow } from "@/components/ShareRow";
+import { SponsorLadder } from "@/components/SponsorLadder";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND } from "@/lib/config";
-import { getHomeData, getWeeklyLeaderboard } from "@/lib/api.functions";
+import { createState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
+import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
+import { challengeUrl } from "@/lib/share";
+import {
+  completeChallenge,
+  createChallenge,
+  getEntry,
+  getHomeData,
+  getWeeklyLeaderboard,
+  saveIdentity,
+  startAttempt,
+  submitScore,
+} from "@/lib/api.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: `${BRAND.name} — Can You Still Beat Your Friends?` },
+      { title: `${BRAND.name} — Play Free` },
       {
         name: "description",
-        content:
-          "Bring back your childhood memories. Now prove you still have it. Enter the 90s Snake Challenge, get your score and challenge your friends.",
+        content: "The classic mobile Snake experience. Free to play, right now. Weekly leaderboard, friend challenges.",
       },
-      { property: "og:title", content: `${BRAND.name} — Can You Still Beat Your Friends?` },
-      {
-        property: "og:description",
-        content: "Bring back your childhood memories. Can you still beat your friends? Enter the challenge.",
-      },
+      { property: "og:title", content: `${BRAND.name} — Play Free` },
+      { property: "og:description", content: "Bring back your childhood memories. Play free, right now." },
     ],
   }),
   component: Landing,
 });
 
-function activityLine(e: { event_type: string; metadata: Record<string, unknown> }) {
-  const name = (e.metadata["nickname"] as string) ?? "Someone";
-  const score = e.metadata["score"] as number | undefined;
-  const rank = e.metadata["rank"] as number | undefined;
-  switch (e.event_type) {
-    case "score":
-      return `${name} just scored ${score?.toLocaleString()}.`;
-    case "top100":
-      return `${name} entered the Top 100.`;
-    case "challenge":
-      return `${name} challenged a friend.`;
-    case "rank":
-      return `${name} reached #${rank}.`;
-    default:
-      return `${name} is playing.`;
-  }
-}
+type Phase = "idle" | "transition" | "game" | "result";
+type Result = Awaited<ReturnType<typeof submitScore>>;
+type Battle = Awaited<ReturnType<typeof completeChallenge>>;
 
 function Landing() {
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [hasIdentity, setHasIdentity] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const attemptCountRef = useRef(0);
+  const [sessionToken, setSessionToken] = useState("");
+  const [initialCheckpoint, setInitialCheckpoint] = useState("");
+  const [result, setResult] = useState<Result | null>(null);
+  const [battle, setBattle] = useState<Battle>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState("");
+
+  const fnEntry = useServerFn(getEntry);
+  const fnSaveIdentity = useServerFn(saveIdentity);
+  const fnStart = useServerFn(startAttempt);
+  const fnSubmit = useServerFn(submitScore);
+  const fnChallenge = useServerFn(createChallenge);
+  const fnComplete = useServerFn(completeChallenge);
+
   const { data } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
   const { data: weekly } = useQuery({
     queryKey: ["weekly-leaderboard"],
@@ -51,92 +72,304 @@ function Landing() {
     staleTime: 20000,
   });
 
+  // Silent, non-blocking: learn whether this device already has a name so
+  // the post-game "save your score" prompt only shows to first-timers.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fnEntry({ data: { secret: getPlayerSecret() } });
+        if (cancelled || !res.profile) return;
+        if (res.profile.nickname !== "Player") setHasIdentity(true);
+        setStoredProfileId(res.profile.id);
+      } catch {
+        // empty — identity resolves lazily, never blocks play
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fnEntry]);
+
+  const idleState = useMemo(() => createState(20250101), []);
+
+  const beginAttempt = useCallback(async () => {
+    setBusy(true);
+    try {
+      const res = await fnStart({ data: { secret: getPlayerSecret() } });
+      attemptCountRef.current += 1;
+      setSessionToken(res.sessionToken);
+      setInitialCheckpoint(res.initialCheckpoint);
+      setAttemptNumber(attemptCountRef.current);
+      setResult(null);
+      setBattle(null);
+      setCode(null);
+      setPhase("transition");
+      track("official_game_started", { attempt: attemptCountRef.current });
+      setTimeout(() => setPhase("game"), 1200);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start the game");
+    } finally {
+      setBusy(false);
+    }
+  }, [fnStart]);
+
+  const onGameOver = useCallback(
+    async (r: { score: number; foods: number; durationMs: number; checkpoint: string }) => {
+      track("official_game_completed", { score: r.score });
+      try {
+        const res = await fnSubmit({
+          data: {
+            sessionToken,
+            foods: r.foods,
+            durationMs: r.durationMs,
+            reportedScore: r.score,
+            checkpoint: r.checkpoint,
+          },
+        });
+        setResult(res);
+        setStoredProfileId(res.profileId);
+        track("score_submitted", { score: res.score, rank: res.rankGlobal });
+        track(res.status === "verified" ? "score_verified" : "score_flagged", { score: res.score });
+
+        const pending = getPendingChallenge();
+        if (pending) {
+          const b = await fnComplete({
+            data: { code: pending, secret: getPlayerSecret(), score: res.score },
+          });
+          setBattle(b);
+          track("friend_game_completed", { won: b?.youWon });
+        }
+
+        setPhase("result");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save your score");
+        setPhase("result");
+      }
+    },
+    [fnSubmit, fnComplete, sessionToken],
+  );
+
+  const saveScoreName = async () => {
+    if (saveName.trim().length < 2) {
+      toast.error("Pick a nickname first");
+      return;
+    }
+    setBusy(true);
+    try {
+      const profile = await fnSaveIdentity({ data: { secret: getPlayerSecret(), nickname: saveName.trim() } });
+      setStoredProfileId(profile.id);
+      setHasIdentity(true);
+      setResult((r) => (r ? { ...r, nickname: profile.nickname } : r));
+      toast.success("Saved!");
+      track("score_name_saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save your name");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const makeChallenge = async () => {
+    setBusy(true);
+    try {
+      const res = await fnChallenge({ data: { secret: getPlayerSecret() } });
+      setCode(res.code);
+      track("challenge_created", { code: res.code });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create the challenge");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* --------------------------------------------------------------- render */
+
+  const gameColumn = (() => {
+    if (phase === "transition") {
+      return (
+        <div className="flex min-h-[420px] items-center justify-center">
+          <p className="pixel text-center text-[13px] leading-[2] text-primary sm:text-lg">
+            YOUR CHILDHOOD
+            <br />
+            IS BACK.
+          </p>
+        </div>
+      );
+    }
+
+    if (phase === "game") {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4">
+          <SnakeGame
+            key={sessionToken}
+            sessionToken={sessionToken}
+            initialCheckpoint={initialCheckpoint}
+            attemptNumber={attemptNumber}
+            onGameOver={onGameOver}
+          />
+        </div>
+      );
+    }
+
+    if (phase === "result") {
+      const score = result?.score ?? 0;
+      const url = code ? challengeUrl(code) : typeof window !== "undefined" ? window.location.origin : "";
+      return (
+        <div className="rise space-y-6">
+          {!hasIdentity && result && (
+            <section className="rounded border border-primary/60 p-4 text-center">
+              <p className="text-xs font-bold tracking-widest text-primary uppercase">Save your score</p>
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={saveName}
+                  maxLength={18}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="Your nickname"
+                  className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={saveScoreName}
+                  className="rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-60"
+                >
+                  Save
+                </button>
+              </div>
+            </section>
+          )}
+
+          {battle && (
+            <section className="border border-border p-5 text-center bg-zinc-900/50">
+              <h2 className="pixel text-[10px] text-primary">THE BATTLE</h2>
+              <div className="mt-4 space-y-1 font-mono text-lg text-zinc-300">
+                <p>
+                  {battle.opponentName} — {battle.opponentScore.toLocaleString()}
+                </p>
+                <p className="text-primary">
+                  {battle.yourName} — {battle.yourScore.toLocaleString()}
+                </p>
+              </div>
+              <p className="mt-4 text-base font-bold text-zinc-100">
+                {battle.youWon ? "👑 YOU TOOK THE CROWN" : `🐍 ${battle.opponentName} STILL HAS THE CROWN`}
+              </p>
+            </section>
+          )}
+
+          <section className="text-center">
+            <h1 className="text-xs tracking-[0.3em] text-muted-foreground uppercase">Your score</h1>
+            <h2 className="font-mono text-6xl font-bold tabular-nums text-foreground mt-2">{score.toLocaleString()}</h2>
+            {result?.isBest && (
+              <div className="mt-4">
+                <p className="text-xs text-muted-foreground">Previous best: {result.previousBest.toLocaleString()}</p>
+                <p className="pixel mt-2 text-[11px] text-primary">NEW PERSONAL BEST 🎉</p>
+              </div>
+            )}
+            {result && (
+              <>
+                <h3 className="mt-4 pixel text-[11px] text-primary">GLOBAL #{result.rankGlobal}</h3>
+                <h3 className="mt-2 text-sm text-muted-foreground">You beat {result.percentile}% of players.</h3>
+                <div className="mt-5 flex justify-center gap-5 text-sm text-zinc-400">
+                  <span>🌍 Global: #{result.rankGlobal}</span>
+                  {result.rankCountry && (
+                    <span>
+                      🏳️‍🌈 {result.country}: #{result.rankCountry}
+                    </span>
+                  )}
+                </div>
+                <p className="pixel mt-6 text-[12px] text-primary">{result.tier.toUpperCase()}</p>
+                {result.status !== "verified" && (
+                  <p className="mt-3 text-xs text-destructive">
+                    This score was flagged for review and won't enter the leaderboard.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="space-y-4 pt-4 border-t border-border">
+            <p className="text-center text-xl sm:text-2xl font-bold leading-tight">
+              😈 WHO WAS BETTER AT SNAKE — YOU OR YOUR FRIENDS?
+            </p>
+            {!code ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={makeChallenge}
+                className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90 active:scale-[0.98] transition-all"
+              >
+                Challenge a friend
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <ShareRow text={`I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`} url={url} />
+                <p className="text-center font-mono text-xs break-all text-muted-foreground bg-zinc-900/50 p-3 rounded">{url}</p>
+              </div>
+            )}
+          </section>
+
+          {code && result && (
+            <div className="pt-4">
+              <ScoreCard score={score} rank={result.rankGlobal} nickname={result.nickname} tier={result.tier} />
+            </div>
+          )}
+
+          <section className="space-y-3 pt-4 border-t border-border">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void beginAttempt()}
+              className="w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60"
+            >
+              {busy ? "One moment…" : "Play again"}
+            </button>
+          </section>
+        </div>
+      );
+    }
+
+    // phase === "idle" — the game is just... there. No form, no click-through.
+    return (
+      <div className="flex flex-col items-center">
+        <NokiaFrame>
+          <LcdScreen
+            state={idleState}
+            overlay={{ lines: ["READY?", "ARROW keys / swipe", "to move."] }}
+          />
+        </NokiaFrame>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void beginAttempt()}
+          className="mt-6 w-full max-w-[300px] rounded bg-primary px-6 py-4 text-base font-bold tracking-wide text-primary-foreground uppercase transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? "One moment…" : "START"}
+        </button>
+      </div>
+    );
+  })();
+
   return (
     <div className="min-h-screen">
       <Header />
 
-      <main className="mx-auto w-full max-w-6xl px-5">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_420px]">
-          {/* Left Column - Main Experience */}
-          <div className="flex flex-col">
-            <section className="rise pt-6 pb-2 text-center">
-              <div className="text-5xl" aria-hidden>
-                🐍
-              </div>
-              <h1 className="pixel mt-6 text-[15px] leading-[1.8] text-primary sm:text-xl">
-                {BRAND.name}
-              </h1>
-              <p className="mt-6 text-2xl font-bold sm:text-3xl">{BRAND.tagline1}</p>
-              <p className="text-2xl font-bold text-primary sm:text-3xl">{BRAND.tagline2}</p>
-              <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-                Remember when this could keep you busy for hours? The classic mobile Snake experience, rebuilt for the 90s generation.
-              </p>
-            </section>
+      <main className="mx-auto w-full max-w-7xl px-5 pb-16">
+        <section className="rise pt-4 pb-6 text-center">
+          <h1 className="pixel text-[13px] leading-[1.8] text-primary sm:text-base">{BRAND.name}</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{BRAND.tagline1} {BRAND.tagline2}</p>
+        </section>
 
-            <section className="mt-8 flex justify-center">
-              <SnakeTeaser />
-            </section>
-
-            <section className="mt-8 mx-auto w-full max-w-md">
-              <Link
-                to="/play"
-                onClick={() => track("challenge_cta_clicked", { placement: "hero" })}
-                className="block w-full rounded bg-primary px-6 py-5 text-center text-base font-bold tracking-wide text-primary-foreground uppercase active:opacity-90"
-              >
-                {BRAND.cta}
-              </Link>
-              <p className="mt-3 text-center text-xs text-muted-foreground">
-                Free to play • Weekly leaderboard • Challenge your friends
-              </p>
-            </section>
-
-            {/* Real numbers only — hidden until the database has them */}
-            <section className="mt-10 grid grid-cols-3 gap-3 text-center mx-auto w-full max-w-md">
-              <Stat value={data?.players} label="players" />
-              <Stat value={data?.topScore} label="top score" />
-              <Stat value={data?.challengesToday} label="challenges today" />
-            </section>
-
-            {!!data?.playingNow && (
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                🟢 {data.playingNow} {data.playingNow === 1 ? "person is" : "people are"} playing right now
-              </p>
-            )}
-
-            {!!data?.activity.length && (
-              <section className="mt-8 space-y-1 border-l-2 border-border pl-4 text-xs text-muted-foreground mx-auto w-full max-w-md">
-                {data.activity.slice(0, 5).map((e: any) => (
-                  <p key={e.id as string}>
-                    {activityLine(e as { event_type: string; metadata: Record<string, unknown> })}
-                  </p>
-                ))}
-              </section>
-            )}
-
-            <section className="mt-16 grid gap-6 sm:grid-cols-3 mx-auto w-full max-w-2xl">
-              <Step n="1" title="ENTER" body="Play free — no payment, no signup." />
-              <Step n="2" title="PLAY" body="Play the classic Snake experience." />
-              <Step n="3" title="CHALLENGE" body="Get your score and challenge your friends." />
-            </section>
-
-            <section className="mt-14 mx-auto w-full max-w-md">
-              <Link
-                to="/play"
-                onClick={() => track("challenge_cta_clicked", { placement: "footer" })}
-                className="block w-full rounded bg-primary px-6 py-5 text-center text-base font-bold tracking-wide text-primary-foreground uppercase"
-              >
-                {BRAND.cta}
-              </Link>
-            </section>
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+          <div className="order-2 lg:order-1">
+            <SponsorLadder />
           </div>
 
-          {/* Right Column - Weekly + Top 20 Leaderboards */}
-          <div className="mt-14 lg:mt-6">
+          <div className="order-1 lg:order-2">{gameColumn}</div>
+
+          <div className="order-3 mt-2 lg:order-3 lg:mt-0">
             <section className="w-full">
               <h2 className="pixel text-[11px] text-primary sm:text-sm">THIS WEEK'S TOP 3</h2>
-              <p className="mt-2 text-xs text-muted-foreground">
-                This week's top 3 players are rewarded by this week's sponsors.
-              </p>
               <ol className="mt-4 divide-y divide-border border-y border-border">
                 {(weekly?.rows ?? []).slice(0, 3).map((row: any) => (
                   <li key={row.profileId as string} className="flex items-center gap-3 py-3 text-sm">
@@ -159,9 +392,7 @@ function Landing() {
             </section>
 
             <section className="mt-10 w-full">
-              <h2 className="pixel text-[11px] text-primary sm:text-sm">
-                TOP 20 — WHO'S STILL GOT IT?
-              </h2>
+              <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP 20 — WHO'S STILL GOT IT?</h2>
               <ol className="mt-6 divide-y divide-border border-y border-border">
                 {(data?.leaderboard ?? []).slice(0, 20).map((row: any, i: number) => (
                   <li key={row.id as string} className="flex items-center gap-3 py-3 text-sm">
@@ -183,39 +414,15 @@ function Landing() {
                   </li>
                 )}
               </ol>
-              <Link
-                to="/leaderboard"
-                className="mt-6 block text-center text-sm font-bold tracking-wide text-primary uppercase"
-              >
+              <Link to="/leaderboard" className="mt-6 block text-center text-sm font-bold tracking-wide text-primary uppercase">
                 VIEW FULL LEADERBOARD →
               </Link>
             </section>
           </div>
         </div>
       </main>
-﻿
 
       <Footer />
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: number | undefined; label: string }) {
-  return (
-    <div>
-      <div className="font-mono text-xl tabular-nums">
-        {value == null ? "—" : value.toLocaleString()}
-      </div>
-      <div className="text-[10px] tracking-widest text-muted-foreground uppercase">{label}</div>
-    </div>
-  );
-}
-
-function Step({ n, title, body }: { n: string; title: string; body: string }) {
-  return (
-    <div>
-      <div className="pixel text-[10px] text-primary">{n}. {title}</div>
-      <p className="mt-2 text-sm text-muted-foreground">{body}</p>
     </div>
   );
 }

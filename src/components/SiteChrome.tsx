@@ -12,7 +12,7 @@ export function Header() {
         <Link to="/leaderboard" className="hover:text-foreground">
           Leaderboard
         </Link>
-        <Link to="/play" className="text-primary hover:opacity-80">
+        <Link to="/" className="text-primary hover:opacity-80">
           Play
         </Link>
       </nav>
@@ -29,8 +29,8 @@ export function Footer() {
         <Link to="/leaderboard" className="hover:text-foreground">
           Leaderboard
         </Link>
-        <Link to="/play" className="hover:text-foreground">
-          Enter
+        <Link to="/" className="hover:text-foreground">
+          Play
         </Link>
         <Link to="/privacy" className="hover:text-foreground">
           Privacy

@@ -89,7 +89,7 @@ function ChallengePage() {
         </p>
 
         <Link
-          to="/play"
+          to="/"
           onClick={() => track("friend_checkout_started", { code: challenge.challenge_code })}
           className="mt-6 block w-full rounded bg-primary px-6 py-5 text-base font-bold tracking-wide text-primary-foreground uppercase"
         >

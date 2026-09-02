@@ -84,7 +84,7 @@ function ProfilePage() {
           </Link>
         )}
         <Link
-          to="/play"
+          to="/"
           className="mt-3 block w-full rounded border border-primary px-6 py-4 text-sm font-bold tracking-wide text-primary uppercase"
         >
           {BRAND.cta}
