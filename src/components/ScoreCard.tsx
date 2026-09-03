@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { BRAND } from "@/lib/config";
+import { renderScoreCard } from "@/lib/scoreCard";
 
 /**
  * Square shareable score card, drawn on canvas so it can be saved and posted
@@ -23,53 +23,14 @@ export function ScoreCard({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const S = 1080;
-    canvas.width = S;
-    canvas.height = S;
+    canvas.width = 1080;
+    canvas.height = 1080;
 
     const styles = getComputedStyle(canvas);
     const bg = styles.getPropertyValue("--lcd").trim() || "#9ab857";
     const ink = styles.getPropertyValue("--lcd-ink").trim() || "#20301a";
 
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, S, S);
-
-    // pixel grid texture
-    ctx.fillStyle = ink;
-    ctx.globalAlpha = 0.05;
-    for (let y = 0; y < S; y += 6) ctx.fillRect(0, y, S, 2);
-    ctx.globalAlpha = 1;
-
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 8;
-    ctx.strokeRect(40, 40, S - 80, S - 80);
-
-    ctx.fillStyle = ink;
-    ctx.textAlign = "center";
-    ctx.font = "bold 44px monospace";
-    ctx.fillText("90s SNAKE", S / 2, 160);
-
-    ctx.font = "120px serif";
-    ctx.fillText("🐍", S / 2, 320);
-
-    ctx.font = "bold 190px monospace";
-    ctx.fillText(score.toLocaleString(), S / 2, 520);
-
-    ctx.font = "bold 52px monospace";
-    ctx.fillText(`GLOBAL #${rank}`, S / 2, 610);
-
-    ctx.font = "40px monospace";
-    ctx.fillText(`${nickname.toUpperCase()} — ${tier.toUpperCase()}`, S / 2, 690);
-
-    ctx.font = "bold 64px monospace";
-    ctx.fillText("BEAT MY SCORE", S / 2, 840);
-
-    ctx.font = "34px monospace";
-    ctx.fillText(
-      typeof window !== "undefined" ? window.location.host : BRAND.short,
-      S / 2,
-      950,
-    );
+    renderScoreCard(ctx, { score, rank, nickname, tier }, { bg, ink });
   }, [score, rank, nickname, tier]);
 
   const download = () => {

@@ -17,11 +17,13 @@ import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
+import { countryName, listCountries } from "@/lib/countries";
 import {
   completeChallenge,
   createChallenge,
   getEntry,
   getHomeData,
+  getSuggestedCountry,
   getWeeklyLeaderboard,
   saveIdentity,
   startAttempt,
@@ -59,6 +61,8 @@ function Landing() {
   const [battle, setBattle] = useState<Battle>(null);
   const [code, setCode] = useState<string | null>(null);
   const [saveName, setSaveName] = useState("");
+  const [saveCountry, setSaveCountry] = useState("");
+  const countries = useMemo(() => listCountries(), []);
 
   const fnEntry = useServerFn(getEntry);
   const fnSaveIdentity = useServerFn(saveIdentity);
@@ -73,6 +77,14 @@ function Landing() {
     queryFn: () => getWeeklyLeaderboard(),
     staleTime: 20000,
   });
+  // Best-effort geo default for the country picker — absent outside Vercel
+  // (local dev), in which case the picker just starts blank.
+  const { data: geo } = useQuery({
+    queryKey: ["suggested-country"],
+    queryFn: () => getSuggestedCountry(),
+    staleTime: Infinity,
+  });
+  const suggestedCountryCode = geo?.code ?? "";
 
   // Silent, non-blocking: learn whether this device already picked its own
   // name so the "customize your name" prompt only shows to first-timers —
@@ -191,12 +203,15 @@ function Landing() {
     }
     setBusy(true);
     try {
-      const profile = await fnSaveIdentity({ data: { secret: getPlayerSecret(), nickname: saveName.trim() } });
+      const country = countryName(saveCountry || suggestedCountryCode);
+      const profile = await fnSaveIdentity({
+        data: { secret: getPlayerSecret(), nickname: saveName.trim(), country },
+      });
       setStoredProfileId(profile.id);
       setHasIdentity(true);
-      setResult((r) => (r ? { ...r, nickname: profile.nickname } : r));
+      setResult((r) => (r ? { ...r, nickname: profile.nickname, country: profile.country ?? r.country } : r));
       toast.success("Saved!");
-      track("score_name_saved");
+      track("score_name_saved", { withCountry: Boolean(country) });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save your name");
     } finally {
@@ -273,9 +288,12 @@ function Landing() {
           {!hasIdentity && result && (
             <section className="rounded border border-primary/60 p-4 text-center">
               <p className="text-xs font-bold tracking-widest text-primary uppercase">
-                You're playing as {result.nickname} — pick your own name?
+                Personalize before you share
               </p>
-              <div className="mt-3 flex gap-2">
+              <p className="mt-1 text-xs text-muted-foreground">
+                You're playing as {result.nickname} — add your name and country so your shared score looks like you.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   value={saveName}
                   maxLength={18}
@@ -283,6 +301,18 @@ function Landing() {
                   placeholder={result.nickname}
                   className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
+                <select
+                  value={saveCountry || suggestedCountryCode}
+                  onChange={(e) => setSaveCountry(e.target.value)}
+                  className="rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary sm:w-40"
+                >
+                  <option value="">Country (optional)</option>
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   disabled={busy}
@@ -358,7 +388,16 @@ function Landing() {
               </button>
             ) : (
               <div className="space-y-4">
-                <ShareRow text={`I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`} url={url} />
+                <ShareRow
+                  text={`I just scored ${score.toLocaleString()} on 90s Snake. Can you beat me?\n\n${url}`}
+                  url={url}
+                  card={{
+                    score,
+                    rank: result?.rankGlobal ?? 0,
+                    nickname: result?.nickname ?? "Player",
+                    tier: result?.tier ?? "Snake Rookie",
+                  }}
+                />
                 <p className="text-center font-mono text-xs break-all text-muted-foreground bg-zinc-900/50 p-3 rounded">{url}</p>
               </div>
             )}

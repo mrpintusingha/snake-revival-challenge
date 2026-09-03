@@ -25,6 +25,25 @@ export async function nativeShare(text: string, url: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Shares a file (e.g. the score card image) through the OS-native share
+ * sheet — the only way a website can put Instagram (or any app without a
+ * public web share-intent URL) in front of the user. Feature-detected:
+ * most desktop browsers don't support file sharing, so callers should fall
+ * back to a plain download when this returns false.
+ */
+export async function nativeShareFile(file: File, text: string, url: string): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.share || !navigator.canShare?.({ files: [file] })) {
+    return false;
+  }
+  try {
+    await navigator.share({ title: "90s Snake", text, url, files: [file] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const facebookUrl = (url: string) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
 export const whatsappUrl = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`;
 export const telegramUrl = (text: string, url: string) =>

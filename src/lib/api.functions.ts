@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import {
   ENTRY_ATTEMPTS,
@@ -461,6 +462,17 @@ async function upsertProfile(
   if (error) throw new Error("Could not create player");
   return created;
 }
+
+/**
+ * Best-effort geo hint so the "personalize your profile" prompt can default
+ * to the player's own country instead of an empty picker. Vercel injects
+ * this header at the edge; it's simply absent outside Vercel (local dev),
+ * which the client treats as "no default, let them pick manually."
+ */
+export const getSuggestedCountry = createServerFn({ method: "GET" }).handler(() => {
+  const code = getRequestHeader("x-vercel-ip-country" as never);
+  return { code: code ?? null };
+});
 
 export const saveIdentity = createServerFn({ method: "POST" })
   .inputValidator((i: { secret: string; nickname: string; country?: string | null | undefined }) =>
