@@ -140,23 +140,23 @@ function activityLine(row: ActivityRow): string {
 }
 
 function rankBadge(rank: number) {
-  if (rank === 1) return <Crown className="h-4 w-4 text-[oklch(0.83_0.15_85)]" aria-hidden />;
-  if (rank === 2) return <Medal className="h-4 w-4 text-[oklch(0.8_0.015_260)]" aria-hidden />;
-  if (rank === 3) return <Medal className="h-4 w-4 text-[oklch(0.7_0.12_55)]" aria-hidden />;
+  if (rank === 1) return <Crown className="h-4 w-4 text-primary" aria-hidden />;
+  if (rank === 2) return <Medal className="h-4 w-4 text-primary/70" aria-hidden />;
+  if (rank === 3) return <Medal className="h-4 w-4 text-primary/45" aria-hidden />;
   return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
 }
 
-// Gold / silver / bronze — full literal class strings (not templated) so
-// Tailwind's static scanner can pick them up.
+// Deep / medium / light green — same brand green at descending intensity,
+// so the podium reads clearly without leaving the site's palette.
 const TIER_ROW_CLASS: Record<number, string> = {
-  1: "border border-[oklch(0.83_0.15_85)]/70 bg-[oklch(0.83_0.15_85)]/10 shadow-[0_0_20px_-8px_oklch(0.83_0.15_85_/_0.55)] hover:bg-[oklch(0.83_0.15_85)]/15",
-  2: "border border-[oklch(0.8_0.015_260)]/80 bg-[oklch(0.8_0.015_260)]/14 shadow-[0_0_20px_-8px_oklch(0.8_0.015_260_/_0.5)] hover:bg-[oklch(0.8_0.015_260)]/20",
-  3: "border border-[oklch(0.7_0.12_55)]/70 bg-[oklch(0.7_0.12_55)]/10 shadow-[0_0_20px_-8px_oklch(0.7_0.12_55_/_0.45)] hover:bg-[oklch(0.7_0.12_55)]/15",
+  1: "border border-primary/90 bg-primary/20 shadow-[0_0_22px_-8px] shadow-primary/60 hover:bg-primary/25",
+  2: "border border-primary/55 bg-primary/12 shadow-[0_0_20px_-8px] shadow-primary/40 hover:bg-primary/16",
+  3: "border border-primary/30 bg-primary/6 shadow-[0_0_18px_-8px] shadow-primary/25 hover:bg-primary/10",
 };
 const TIER_AVATAR_BORDER: Record<number, string> = {
-  1: "border-[oklch(0.83_0.15_85)]/60",
-  2: "border-[oklch(0.8_0.015_260)]/70",
-  3: "border-[oklch(0.7_0.12_55)]/60",
+  1: "border-primary/70",
+  2: "border-primary/45",
+  3: "border-primary/25",
 };
 
 function SponsorRow({
@@ -416,7 +416,7 @@ export function SponsorLadder() {
                 onFocus={() => setAmountTouched(true)}
                 onBlur={() => setAmount((a) => Math.max(a, floorAmount))}
                 aria-label="Your bid amount"
-                style={{ width: `${Math.max(String(amountTouched ? amount || "" : floorAmount).length, 2) + 1}ch` }}
+                style={{ width: `${Math.max(String(amountTouched ? amount || "" : floorAmount).length, 2)}ch` }}
                 className="bg-transparent tabular-nums outline-none"
               />
             </span>
