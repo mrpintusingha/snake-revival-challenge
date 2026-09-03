@@ -146,26 +146,29 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
       const db = await publicDb();
       const since = new Date(Date.now() - 86400000).toISOString();
 
-      const [players, top, challengesToday, activity, board, recentPlayers] = await Promise.all([
-        db.from("profiles").select("id", { count: "estimated", head: true }),
-        db.from("profiles").select("best_score").order("best_score", { ascending: false }).limit(1),
-        db.from("challenges").select("id", { count: "exact", head: true }).gte("created_at", since),
-        db
-          .from("activity_events")
-          .select("id, event_type, metadata, created_at")
-          .order("created_at", { ascending: false })
-          .limit(12),
-        db
-          .from("profiles")
-          .select("id, nickname, country, best_score")
-          .gt("best_score", 0)
-          .order("best_score", { ascending: false })
-          .limit(5),
-        db
-          .from("scores")
-          .select("profile_id", { count: "exact", head: true })
-          .gte("created_at", new Date(Date.now() - 900000).toISOString()),
-      ]);
+      const [players, top, challengesToday, activity, board, recentPlayers, gamesToday, topScoreToday] =
+        await Promise.all([
+          db.from("profiles").select("id", { count: "estimated", head: true }),
+          db.from("profiles").select("best_score").order("best_score", { ascending: false }).limit(1),
+          db.from("challenges").select("id", { count: "exact", head: true }).gte("created_at", since),
+          db
+            .from("activity_events")
+            .select("id, event_type, metadata, created_at")
+            .order("created_at", { ascending: false })
+            .limit(12),
+          db
+            .from("profiles")
+            .select("id, nickname, country, best_score")
+            .gt("best_score", 0)
+            .order("best_score", { ascending: false })
+            .limit(5),
+          db
+            .from("scores")
+            .select("profile_id", { count: "exact", head: true })
+            .gte("created_at", new Date(Date.now() - 900000).toISOString()),
+          db.from("scores").select("id", { count: "exact", head: true }).gte("created_at", since),
+          db.from("scores").select("score").gte("created_at", since).order("score", { ascending: false }).limit(1),
+        ]);
 
       const data = {
         players: players.count ?? 0,
@@ -174,6 +177,8 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
         playingNow: recentPlayers.count ?? 0,
         activity: activity.data ?? [],
         leaderboard: board.data ?? [],
+        gamesToday: gamesToday.count ?? 0,
+        topScoreToday: topScoreToday.data?.[0]?.score ?? 0,
       };
 
       homeDataCache = { data, expiresAt: Date.now() + TTL };
@@ -189,6 +194,8 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
         playingNow: 0,
         activity: [],
         leaderboard: [],
+        gamesToday: 0,
+        topScoreToday: 0,
       };
     } finally {
       homeDataPromise = null; // Clear inflight promise lock

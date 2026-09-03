@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Crown, Medal, Trophy } from "lucide-react";
 import { SnakeGame } from "@/components/game/SnakeGame";
 import { NokiaFrame } from "@/components/NokiaFrame";
 import { LcdScreen } from "@/components/LcdScreen";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
+import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND } from "@/lib/config";
 import type { SnakeState } from "@/lib/snake-engine";
@@ -394,17 +396,20 @@ function Landing() {
     );
   })();
 
+  const rankIcon = (rank: number) => {
+    if (rank === 1) return <Crown className="h-4 w-4 text-[oklch(0.83_0.15_85)]" aria-hidden />;
+    if (rank === 2) return <Medal className="h-4 w-4 text-zinc-300" aria-hidden />;
+    if (rank === 3) return <Medal className="h-4 w-4 text-[oklch(0.7_0.12_55)]" aria-hidden />;
+    return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
+  };
+
   return (
-    <div className="min-h-screen">
-      <Header />
+    <div className="crt-grid min-h-screen">
+      <Header playersOnline={data?.playingNow} />
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
-        <section className="rise pt-4 pb-6 text-center">
-          <h1 className="pixel text-[13px] leading-[1.8] text-primary sm:text-base">{BRAND.name}</h1>
-          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{BRAND.tagline1} {BRAND.tagline2}</p>
-        </section>
-
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+        <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
+        <div className="rise grid grid-cols-1 gap-10 pt-8 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
           <div className="order-2 lg:order-1">
             <SponsorLadder />
           </div>
@@ -412,16 +417,18 @@ function Landing() {
           <div className="order-1 lg:order-2">{gameColumn}</div>
 
           <div className="order-3 mt-2 lg:order-3 lg:mt-0">
-            <section className="w-full">
-              <h2 className="pixel text-[11px] text-primary sm:text-sm">THIS WEEK'S TOP 3</h2>
-              <ol className="mt-4 divide-y divide-border border-y border-border">
+            <section className="neon-border w-full rounded p-4">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-primary" aria-hidden />
+                <h2 className="pixel text-[11px] text-primary sm:text-sm">HIGH SCORES</h2>
+              </div>
+
+              <p className="mt-3 text-[10px] tracking-widest text-muted-foreground uppercase">This week's top 3</p>
+              <ol className="mt-2 divide-y divide-border border-y border-border">
                 {(weekly?.rows ?? []).slice(0, 3).map((row: any) => (
                   <li key={row.profileId as string} className="flex items-center gap-3 py-3 text-sm">
-                    <span className="w-8 text-left font-mono font-bold text-primary">#{row.rank}</span>
+                    <span className="flex w-6 justify-center">{rankIcon(row.rank as number)}</span>
                     <span className="flex-1 truncate font-bold uppercase tracking-wide">{row.nickname as string}</span>
-                    <span className="hidden w-28 truncate text-xs text-muted-foreground sm:block">
-                      {(row.country as string) || "Unknown"}
-                    </span>
                     <span className="w-20 text-right font-mono font-bold tabular-nums">
                       {(row.score as number).toLocaleString()}
                     </span>
@@ -433,20 +440,15 @@ function Landing() {
                   </li>
                 )}
               </ol>
-            </section>
 
-            <section className="mt-10 w-full">
-              <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP 20 — WHO'S STILL GOT IT?</h2>
-              <ol className="mt-6 divide-y divide-border border-y border-border">
+              <p className="mt-6 text-[10px] tracking-widest text-muted-foreground uppercase">Top 20 — who's still got it?</p>
+              <ol className="mt-2 divide-y divide-border border-y border-border">
                 {(data?.leaderboard ?? []).slice(0, 20).map((row: any, i: number) => (
                   <li key={row.id as string} className="flex items-center gap-3 py-3 text-sm">
-                    <span className="w-8 text-left font-mono font-bold text-primary">#{i + 1}</span>
+                    <span className="flex w-6 justify-center">{rankIcon(i + 1)}</span>
                     <Link to="/p/$id" params={{ id: row.id as string }} className="flex-1 truncate hover:text-primary font-bold uppercase tracking-wide">
                       {row.nickname as string}
                     </Link>
-                    <span className="hidden w-28 truncate text-xs text-muted-foreground sm:block">
-                      {row.country as string || "Unknown"}
-                    </span>
                     <span className="w-20 text-right font-mono font-bold tabular-nums">
                       {(row.best_score as number).toLocaleString()}
                     </span>
@@ -462,8 +464,25 @@ function Landing() {
                 VIEW FULL LEADERBOARD →
               </Link>
             </section>
+
+            <a
+              href="#sponsor"
+              className="mt-6 flex items-center justify-between gap-4 rounded border border-dashed border-border p-4 hover:border-primary"
+            >
+              <span>
+                <span className="block text-xs font-bold tracking-widest text-primary uppercase">Your brand here</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Ad space visible to thousands of players daily. Top position, maximum visibility.
+                </span>
+              </span>
+              <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded border border-dashed border-border text-center text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                Your logo
+              </span>
+            </a>
           </div>
         </div>
+
+        <StatusBar playersOnline={data?.playingNow} gamesToday={data?.gamesToday} topScoreToday={data?.topScoreToday} />
       </main>
 
       <Footer />

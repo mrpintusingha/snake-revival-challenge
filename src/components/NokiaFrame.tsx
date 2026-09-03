@@ -24,11 +24,11 @@ export function NokiaFrame({
     <div className="relative mx-auto w-full max-w-[300px] select-none">
       {/* Ambient brand-colored glow behind the shell */}
       <div
-        className="pointer-events-none absolute -inset-4 rounded-[46px] blur-[2px]"
-        style={{ background: "radial-gradient(60% 55% at 50% 30%, oklch(0.84 0.19 130 / 0.16), transparent 70%)" }}
+        className="pointer-events-none absolute -inset-6 rounded-[50px] blur-[6px]"
+        style={{ background: "radial-gradient(60% 55% at 50% 30%, oklch(0.84 0.19 130 / 0.3), transparent 70%)" }}
       />
 
-      <div className="relative rounded-[34px] border border-border bg-gradient-to-b from-card to-background p-4 pt-[18px] pb-5 shadow-[0_1px_0_var(--border)_inset,0_30px_60px_-20px_rgba(0,0,0,0.7)]">
+      <div className="relative rounded-[34px] border border-border bg-gradient-to-b from-card via-background to-[oklch(0.1_0.01_150)] p-4 pt-[18px] pb-5 shadow-[0_1px_0_var(--border)_inset,0_0_0_1px_oklch(0.84_0.19_130_/_0.12),0_30px_70px_-16px_rgba(0,0,0,0.85)]">
         {/* Earpiece grille */}
         <div className="mb-4 flex justify-center gap-1">
           <span className="h-[3px] w-[22px] rounded-full bg-border" />
