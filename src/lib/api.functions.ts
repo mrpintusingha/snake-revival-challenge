@@ -903,6 +903,16 @@ const sponsorCategorySchema = z.enum(SPONSOR_CATEGORIES);
 const sponsorLadderSchema = z.enum(["all_time", "daily"]);
 type SponsorLadder = z.infer<typeof sponsorLadderSchema>;
 
+// The claim form's placeholder invites a bare domain ("calllive.ai"), and
+// the client-side favicon/domain helpers already tolerate that — the
+// server-side check didn't, rejecting exactly the input the UI encourages.
+// Normalize before validating as a URL, same as the client already does.
+const sponsorLinkUrlSchema = z.preprocess((val) => {
+  if (typeof val !== "string") return val;
+  const trimmed = val.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}, z.string().url().max(300));
+
 // Hostnames a link-preview fetch must never be allowed to reach — loopback,
 // private ranges, and cloud metadata endpoints. This is a best-effort literal
 // blocklist (no DNS-resolution check), sufficient for a low-stakes preview
@@ -1079,7 +1089,7 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
     }) =>
       z
         .object({
-          linkUrl: z.string().url().max(300),
+          linkUrl: sponsorLinkUrlSchema,
           category: sponsorCategorySchema,
           tagline: z.string().trim().min(4).max(140),
           amount: z.number().int().min(SPONSOR_MIN_INCREMENT).max(1_000_000),
