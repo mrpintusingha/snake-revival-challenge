@@ -309,13 +309,13 @@ function Landing() {
                       maxLength={18}
                       onChange={(e) => setSaveName(e.target.value)}
                       placeholder={result.nickname}
-                      className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                      className="min-w-0 flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                     />
                   )}
                   <select
                     value={saveCountry || suggestedCountryCode}
                     onChange={(e) => setSaveCountry(e.target.value)}
-                    className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    className="min-w-0 flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                   >
                     <option value="">Country (optional)</option>
                     {countries.map((c) => (
