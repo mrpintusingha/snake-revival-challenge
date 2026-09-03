@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -40,13 +40,12 @@ import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { domainFor, faviconFor, rankBadge, TIER_AVATAR_BORDER, TIER_ROW_CLASS } from "@/lib/sponsorDisplay";
 import {
-  claimSponsorRank,
-  fetchLinkPreview,
   getHomeData,
   getSponsorClaimStatus,
   getSponsorStandings,
   recordSponsorClick,
 } from "@/lib/api.functions";
+import { useSponsorClaimForm } from "@/hooks/useSponsorClaimForm";
 
 type Ladder = "all_time" | "daily";
 
@@ -199,16 +198,8 @@ function SponsorRow({
 
 export function SponsorLadder() {
   const [ladder, setLadder] = useState<Ladder>("all_time");
-  const [linkUrl, setLinkUrl] = useState("");
-  const [category, setCategory] = useState<string>("");
-  const [tagline, setTagline] = useState("");
-  const [amount, setAmount] = useState(SPONSOR_MIN_INCREMENT);
-  const [amountTouched, setAmountTouched] = useState(false);
-  const [busy, setBusy] = useState(false);
 
-  const fnClaim = useServerFn(claimSponsorRank);
   const fnClick = useServerFn(recordSponsorClick);
-  const fnPreview = useServerFn(fetchLinkPreview);
   const fnClaimStatus = useServerFn(getSponsorClaimStatus);
 
   // Coming back from a real Dodo checkout: the return URL carries ?claim=<bidId>
@@ -251,37 +242,6 @@ export function SponsorLadder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [preview, setPreview] = useState<{ title: string | null; description: string | null } | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // As soon as the URL looks plausible, fetch its title/description (debounced)
-  // to preview + prefill the tagline — the favicon itself needs no round trip,
-  // it's derived client-side from the domain via faviconFor() below.
-  useEffect(() => {
-    if (previewTimer.current) clearTimeout(previewTimer.current);
-    const trimmed = linkUrl.trim();
-    if (trimmed.length < 4 || !/\.[a-z]{2,}/i.test(trimmed)) {
-      setPreview(null);
-      setPreviewLoading(false);
-      return;
-    }
-    setPreviewLoading(true);
-    previewTimer.current = setTimeout(() => {
-      fnPreview({ data: { url: trimmed } })
-        .then((res) => {
-          setPreview(res);
-          setTagline((current) => (current.trim() ? current : (res.description ?? res.title ?? current)));
-        })
-        .catch(() => setPreview(null))
-        .finally(() => setPreviewLoading(false));
-    }, 600);
-    return () => {
-      if (previewTimer.current) clearTimeout(previewTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkUrl]);
-
   const { data, refetch } = useQuery({
     queryKey: ["sponsor-standings", ladder],
     queryFn: () => getSponsorStandings({ data: { ladder } }) as Promise<Standing[]>,
@@ -299,55 +259,13 @@ export function SponsorLadder() {
   const rest = standings.slice(3);
   const topAmount = standings[0]?.amount ?? 0;
   const floorAmount = topAmount + SPONSOR_MIN_INCREMENT;
-  const effectiveAmount = amountTouched ? Math.max(amount, floorAmount) : floorAmount;
+
+  const form = useSponsorClaimForm(ladder, floorAmount, () => void refetch());
 
   const switchLadder = (next: Ladder) => {
     if (next === ladder) return;
     setLadder(next);
-    setAmountTouched(false);
-  };
-
-  const claim = async (targetAmount: number) => {
-    if (linkUrl.trim().length < 4) {
-      toast.error("Add your URL or @handle first");
-      return;
-    }
-    if (tagline.trim().length < 4) {
-      toast.error("Add a short tagline");
-      return;
-    }
-    if (!category) {
-      toast.error("Choose a category");
-      return;
-    }
-    setBusy(true);
-    track("sponsor_claim_clicked", { amount: targetAmount, ladder });
-    try {
-      const res = await fnClaim({
-        data: {
-          linkUrl: linkUrl.trim(),
-          category,
-          tagline: tagline.trim(),
-          amount: targetAmount,
-          returnUrl: `${window.location.origin}/`,
-          ladderType: ladder,
-        },
-      });
-      if (res.mode === "redirect") {
-        window.location.href = res.url;
-        return;
-      }
-      toast.success("You're #1 — claim confirmed (test mode)");
-      track("sponsor_claim_completed", { mode: "test", ladder });
-      setLinkUrl("");
-      setTagline("");
-      setAmountTouched(false);
-      void refetch();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not place your claim");
-    } finally {
-      setBusy(false);
-    }
+    form.resetAmount();
   };
 
   const onClickListing = (s: Standing) => {
@@ -356,8 +274,7 @@ export function SponsorLadder() {
   };
 
   const claimHereFor = (s: Standing) => {
-    setAmount(s.amount + SPONSOR_MIN_INCREMENT);
-    setAmountTouched(true);
+    form.setToAmount(s.amount + SPONSOR_MIN_INCREMENT);
   };
 
   return (
@@ -398,10 +315,7 @@ export function SponsorLadder() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setAmountTouched(true);
-                setAmount((a) => Math.max(floorAmount, (amountTouched ? a : floorAmount) - 1));
-              }}
+              onClick={form.decrement}
               className="h-6 w-6 shrink-0 rounded-full border border-border text-xs hover:bg-accent"
               aria-label="Decrease amount"
             >
@@ -412,25 +326,21 @@ export function SponsorLadder() {
               <input
                 type="text"
                 inputMode="numeric"
-                value={amountTouched ? amount || "" : floorAmount}
+                value={form.amountTouched ? form.amount || "" : floorAmount}
                 onChange={(e) => {
                   const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 7);
-                  setAmountTouched(true);
-                  setAmount(digits ? Number(digits) : 0);
+                  form.setAmountDigits(digits);
                 }}
-                onFocus={() => setAmountTouched(true)}
-                onBlur={() => setAmount((a) => Math.max(a, floorAmount))}
+                onFocus={() => form.setToAmount(form.amountTouched ? form.amount : floorAmount)}
+                onBlur={form.blurAmount}
                 aria-label="Your bid amount"
-                style={{ width: `${Math.max(String(amountTouched ? amount || "" : floorAmount).length, 2)}ch` }}
+                style={{ width: `${Math.max(String(form.amountTouched ? form.amount || "" : floorAmount).length, 2)}ch` }}
                 className="bg-transparent tabular-nums outline-none"
               />
             </span>
             <button
               type="button"
-              onClick={() => {
-                setAmountTouched(true);
-                setAmount((amountTouched ? amount : floorAmount) + 1);
-              }}
+              onClick={form.increment}
               className="h-6 w-6 shrink-0 rounded-full border border-border text-xs hover:bg-accent"
               aria-label="Increase amount"
             >
@@ -442,9 +352,9 @@ export function SponsorLadder() {
         <div className="flex gap-2">
           <div className="min-w-0 flex-[3]">
             <div className="relative">
-              {faviconFor(linkUrl) && /\.[a-z]{2,}/i.test(linkUrl) ? (
+              {faviconFor(form.linkUrl) && /\.[a-z]{2,}/i.test(form.linkUrl) ? (
                 <img
-                  src={faviconFor(linkUrl)!}
+                  src={faviconFor(form.linkUrl)!}
                   alt=""
                   className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 rounded-sm"
                   onError={(e) => (e.currentTarget.style.display = "none")}
@@ -453,28 +363,28 @@ export function SponsorLadder() {
                 <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               )}
               <input
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
+                value={form.linkUrl}
+                onChange={(e) => form.setLinkUrl(e.target.value)}
                 placeholder="URL or @handle"
                 className="w-full rounded-full border border-input bg-secondary py-2 pr-9 pl-9 text-sm text-foreground outline-none focus:border-primary"
               />
-              {previewLoading && (
+              {form.previewLoading && (
                 <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
               )}
             </div>
-            {preview?.title && (
+            {form.preview?.title && (
               <p className="mt-1 truncate px-3 text-[10px] text-muted-foreground">
-                Fetched: <span className="text-foreground">{preview.title}</span>
+                Fetched: <span className="text-foreground">{form.preview.title}</span>
               </p>
             )}
           </div>
           <div className="relative min-w-0 flex-[2]">
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              value={form.category}
+              onChange={(e) => form.setCategory(e.target.value)}
               className={cn(
                 "w-full appearance-none rounded-full border border-input bg-secondary py-2 pr-8 pl-3.5 text-sm outline-none focus:border-primary",
-                category ? "text-foreground" : "text-muted-foreground",
+                form.category ? "text-foreground" : "text-muted-foreground",
               )}
             >
               <option value="" disabled>
@@ -494,8 +404,8 @@ export function SponsorLadder() {
         </div>
 
         <input
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
+          value={form.tagline}
+          onChange={(e) => form.setTagline(e.target.value)}
           maxLength={80}
           placeholder="One-line tagline"
           className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -503,11 +413,11 @@ export function SponsorLadder() {
 
         <button
           type="button"
-          disabled={busy}
-          onClick={() => void claim(effectiveAmount)}
+          disabled={form.busy}
+          onClick={() => void form.claim(form.effectiveAmount)}
           className="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90"
         >
-          {busy ? "One moment…" : "Claim rank"}
+          {form.busy ? "One moment…" : "Claim rank"}
         </button>
       </div>
 

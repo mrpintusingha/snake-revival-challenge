@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHost, getRequestIP, getRequestProtocol } from "@tanstack/react-start/server";
 import { z } from "zod";
 import {
   GAME_VERSION,
@@ -51,6 +52,25 @@ function rateLimit(key: string, max: number, windowMs: number) {
   if (list.length >= max) throw new Error("Too many requests. Slow down a moment.");
   list.push(now);
   hits.set(key, list);
+}
+
+/**
+ * The origin to send a payment provider back to after checkout — derived
+ * from the incoming request itself (Vercel-set Host/proto headers), never
+ * from client-supplied input. A client-controlled return_url would let
+ * anyone redirect a real Dodo checkout's post-payment landing page
+ * anywhere they want (an open-redirect useful for phishing follow-ups).
+ */
+function trustedOrigin(): string {
+  const host = getRequestHost({ xForwardedHost: true });
+  const protocol = getRequestProtocol({ xForwardedProto: true });
+  if (!host) return "http://localhost:8080";
+  return `${protocol === "http" ? "http" : "https"}://${host}`;
+}
+
+/** Best-effort caller IP for rate limiting — defense in depth alongside the per-field limits below (all in-memory, so not a substitute for provider-side abuse controls on a serverless deployment). */
+function requestIp(): string {
+  return getRequestIP({ xForwardedFor: true }) ?? "unknown";
 }
 
 async function admin() {
@@ -1084,7 +1104,6 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
       category: string;
       tagline: string;
       amount: number;
-      returnUrl: string;
       ladderType?: SponsorLadder | undefined;
     }) =>
       z
@@ -1093,13 +1112,15 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
           category: sponsorCategorySchema,
           tagline: z.string().trim().min(4).max(140),
           amount: z.number().int().min(SPONSOR_MIN_INCREMENT).max(1_000_000),
-          returnUrl: z.string().url().max(500),
           ladderType: sponsorLadderSchema.default("all_time"),
         })
         .parse(i),
   )
   .handler(async ({ data }) => {
+    // Per-URL AND per-IP: a per-field limit alone is trivially bypassed by
+    // varying the URL on every request.
     rateLimit(`sponsor-claim:${data.linkUrl.slice(0, 60)}`, 10, 60000);
+    rateLimit(`sponsor-claim-ip:${requestIp()}`, 15, 60000);
     const db = await admin();
 
     const { data: bid, error: claimError } = await (db.rpc as any)("claim_sponsor_bid", {
@@ -1111,7 +1132,7 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
     });
     if (claimError) {
       throw new Error(
-        claimError.message?.includes("Bid too low")
+        claimError.message?.includes("Bid too low") || claimError.message?.includes("Bid must be")
           ? claimError.message
           : "Could not place your claim. Please try again.",
       );
@@ -1130,10 +1151,11 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
       return { mode: "test" as const, bidId: bid.id as string };
     }
 
-    // Server-appends a claim marker to the return URL (rather than trusting
-    // whatever the client sent) so the page can reliably confirm/poll this
-    // exact bid once Dodo redirects the sponsor back.
-    const returnUrl = new URL(data.returnUrl);
+    // The return URL is built entirely server-side from the request's own
+    // host — never from client input — with a claim marker appended so the
+    // page can reliably confirm/poll this exact bid once Dodo redirects
+    // the sponsor back.
+    const returnUrl = new URL("/", trustedOrigin());
     returnUrl.searchParams.set("claim", bid.id);
 
     const res = await fetch(`${DODO_BASE()}/checkouts`, {

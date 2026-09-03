@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { LeaderboardDrawer } from "@/components/LeaderboardDrawer";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
+import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND, SPONSOR_MIN_INCREMENT } from "@/lib/config";
@@ -67,7 +68,9 @@ function Landing() {
   const [saveName, setSaveName] = useState("");
   const [saveCountry, setSaveCountry] = useState("");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
   const countries = useMemo(() => listCountries(), []);
+  const queryClient = useQueryClient();
 
   const fnEntry = useServerFn(getEntry);
   const fnSaveIdentity = useServerFn(saveIdentity);
@@ -464,11 +467,9 @@ function Landing() {
     );
   })();
 
-  const onRankerClick = (amount: number) => {
-    const nextBid = amount + SPONSOR_MIN_INCREMENT;
-    toast(`Claim this rank for $${nextBid.toLocaleString()} →`);
-    track("sponsor_rank_prompt_clicked", { amount: nextBid });
-    document.getElementById("sponsor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const onRankerClick = (target: ClaimModalTarget) => {
+    track("sponsor_rank_prompt_clicked", { amount: target.amount + SPONSOR_MIN_INCREMENT, rank: target.rank });
+    setClaimTarget(target);
   };
 
   return (
@@ -501,7 +502,7 @@ function Landing() {
                     rank={i + 1}
                     linkUrl={s.link_url}
                     amount={s.amount}
-                    onOpen={() => onRankerClick(s.amount)}
+                    onOpen={() => onRankerClick({ rank: i + 1, amount: s.amount, linkUrl: s.link_url })}
                   />
                 ))}
                 {!sponsors?.length && (
@@ -538,6 +539,14 @@ function Landing() {
       />
 
       <Footer />
+
+      {claimTarget && (
+        <ClaimModal
+          target={claimTarget}
+          onClose={() => setClaimTarget(null)}
+          onClaimed={() => void queryClient.invalidateQueries({ queryKey: ["sponsor-standings"] })}
+        />
+      )}
     </div>
   );
 }
