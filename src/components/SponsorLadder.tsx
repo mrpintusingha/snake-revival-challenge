@@ -9,7 +9,6 @@ import {
   CheckSquare,
   Coins,
   Compass,
-  Crown,
   Code2,
   Gamepad2,
   Globe,
@@ -19,7 +18,6 @@ import {
   Landmark,
   Loader2,
   MapPin,
-  Medal,
   Megaphone,
   Mic,
   MoreHorizontal,
@@ -140,23 +138,35 @@ function activityLine(row: ActivityRow): string {
 }
 
 function rankBadge(rank: number) {
-  if (rank === 1) return <Crown className="h-4 w-4 text-primary" aria-hidden />;
-  if (rank === 2) return <Medal className="h-4 w-4 text-primary/70" aria-hidden />;
-  if (rank === 3) return <Medal className="h-4 w-4 text-primary/45" aria-hidden />;
-  return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
+  return (
+    <span
+      className={cn(
+        "font-mono text-xs font-bold",
+        rank === 1
+          ? "text-primary"
+          : rank === 2
+            ? "text-primary/70"
+            : rank === 3
+              ? "text-primary/50"
+              : "text-muted-foreground",
+      )}
+    >
+      #{rank}
+    </span>
+  );
 }
 
 // Deep / medium / light green — same brand green at descending intensity,
 // so the podium reads clearly without leaving the site's palette.
 const TIER_ROW_CLASS: Record<number, string> = {
-  1: "border border-primary/90 bg-primary/20 shadow-[0_0_22px_-8px] shadow-primary/60 hover:bg-primary/25",
-  2: "border border-primary/55 bg-primary/12 shadow-[0_0_20px_-8px] shadow-primary/40 hover:bg-primary/16",
-  3: "border border-primary/30 bg-primary/6 shadow-[0_0_18px_-8px] shadow-primary/25 hover:bg-primary/10",
+  1: "border border-primary bg-primary/25 shadow-[0_0_24px_-6px] shadow-primary/70 hover:bg-primary/30",
+  2: "border border-primary/65 bg-primary/15 shadow-[0_0_20px_-8px] shadow-primary/45 hover:bg-primary/19",
+  3: "border border-primary/40 bg-primary/8 shadow-[0_0_18px_-8px] shadow-primary/28 hover:bg-primary/11",
 };
 const TIER_AVATAR_BORDER: Record<number, string> = {
-  1: "border-primary/70",
-  2: "border-primary/45",
-  3: "border-primary/25",
+  1: "border-primary",
+  2: "border-primary/55",
+  3: "border-primary/32",
 };
 
 function SponsorRow({
