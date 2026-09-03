@@ -1,12 +1,9 @@
 /**
  * Central product configuration.
- * Price, attempts, timings, wording and feature flags all live here so they can
- * be changed in one place (pricing tests, legal review, copy experiments).
+ * Timings, wording and feature flags all live here so they can be changed in
+ * one place (legal review, copy experiments). The game itself is free — see
+ * the comment on startAttempt in api.functions.ts.
  */
-
-export const ENTRY_PRICE = Number(import.meta.env["VITE_ENTRY_PRICE"] ?? 1);
-export const ENTRY_CURRENCY = "USD";
-export const ENTRY_ATTEMPTS = Number(import.meta.env["VITE_ENTRY_ATTEMPTS"] ?? 3);
 
 /** Longest a single official attempt may last before the session is void. */
 export const MAX_SESSION_DURATION_MS = 30 * 60 * 1000;
@@ -20,9 +17,6 @@ export const FEATURE_FLAGS = {
   showFriendsLeaderboard: true,
   showShareCard: true,
 } as const;
-
-export const formatPrice = (amount: number = ENTRY_PRICE) =>
-  amount % 1 === 0 ? `$${amount.toFixed(0)}` : `$${amount.toFixed(2)}`;
 
 /** All brand / nostalgia wording. Editable without touching components. */
 export const BRAND = {

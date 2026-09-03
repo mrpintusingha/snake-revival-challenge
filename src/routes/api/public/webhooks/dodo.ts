@@ -66,63 +66,34 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Sponsor ladder claims are a separate purpose/product from player
-        // entry — same signature/replay/idempotency handling above, just a
-        // different table to settle.
-        if (event.data?.metadata?.["kind"] === "sponsor_bid") {
-          const bidId = event.data.metadata["bid_id"];
-          if (!bidId) return new Response("ok (no reference)", { status: 200 });
-
-          const { data: bid } = await supabaseAdmin
-            .from("sponsor_bids")
-            .select("id, payment_status")
-            .eq("id", bidId)
-            .maybeSingle();
-          if (!bid) return new Response("ok (unknown bid)", { status: 200 });
-          if (bid.payment_status === "succeeded") return new Response("ok (already processed)", { status: 200 });
-
-          if (succeeded) {
-            await supabaseAdmin
-              .from("sponsor_bids")
-              .update({
-                payment_status: "succeeded",
-                is_active: true,
-                payment_reference: event.data?.payment_id ?? null,
-              })
-              .eq("id", bid.id);
-          } else if (failed) {
-            await supabaseAdmin.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id);
-          }
-          return new Response("ok", { status: 200 });
+        // The sponsor ladder is the only product this webhook settles —
+        // player entry is free, no checkout flow creates any other kind.
+        if (event.data?.metadata?.["kind"] !== "sponsor_bid") {
+          return new Response("ok (unhandled kind)", { status: 200 });
         }
+        const bidId = event.data.metadata["bid_id"];
+        if (!bidId) return new Response("ok (no reference)", { status: 200 });
 
-        const ourId = event.data?.metadata?.["payment_id"];
-        if (!ourId) return new Response("ok (no reference)", { status: 200 });
-
-        const { data: payment } = await supabaseAdmin
-          .from("payments")
-          .select("id, status")
-          .eq("id", ourId)
+        const { data: bid } = await supabaseAdmin
+          .from("sponsor_bids")
+          .select("id, payment_status")
+          .eq("id", bidId)
           .maybeSingle();
-        if (!payment) return new Response("ok (unknown payment)", { status: 200 });
-        if (payment.status === "succeeded") return new Response("ok (already processed)", { status: 200 });
+        if (!bid) return new Response("ok (unknown bid)", { status: 200 });
+        if (bid.payment_status === "succeeded") return new Response("ok (already processed)", { status: 200 });
 
         if (succeeded) {
           await supabaseAdmin
-            .from("payments")
+            .from("sponsor_bids")
             .update({
-              status: "succeeded",
-              provider_payment_id: event.data?.payment_id ?? null,
-              updated_at: new Date().toISOString(),
+              payment_status: "succeeded",
+              is_active: true,
+              payment_reference: event.data?.payment_id ?? null,
             })
-            .eq("id", payment.id);
+            .eq("id", bid.id);
         } else if (failed) {
-          await supabaseAdmin
-            .from("payments")
-            .update({ status: "failed", updated_at: new Date().toISOString() })
-            .eq("id", payment.id);
+          await supabaseAdmin.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id);
         }
-
         return new Response("ok", { status: 200 });
       },
     },

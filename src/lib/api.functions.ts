@@ -1,9 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
-  ENTRY_ATTEMPTS,
-  ENTRY_CURRENCY,
-  ENTRY_PRICE,
   GAME_VERSION,
   MAX_SESSION_DURATION_MS,
   SPONSOR_CATEGORIES,
@@ -534,90 +531,7 @@ const DODO_BASE = () =>
     ? "https://live.dodopayments.com"
     : "https://test.dodopayments.com";
 
-export const startCheckout = createServerFn({ method: "POST" })
-  .inputValidator(
-    (i: { secret: string; nickname: string; country?: string | null | undefined; challengeCode?: string | null | undefined; returnUrl: string }) =>
-      z
-        .object({
-          secret: z.string().min(8).max(200),
-          nickname: nicknameSchema,
-          country: z.string().max(60).nullable().optional(),
-          challengeCode: z.string().max(24).nullable().optional(),
-          returnUrl: z.string().url().max(500),
-        })
-        .parse(i),
-  )
-  .handler(async ({ data }) => {
-    rateLimit(`checkout:${data.secret.slice(0, 12)}`, 10, 60000);
-    const db = await admin();
-    const profile = await upsertProfile(db, await sha256(data.secret), data.nickname, data.country ?? null);
-
-    const { data: payment, error } = await db
-      .from("payments")
-      .insert({
-        profile_id: profile.id,
-        provider: "dodo",
-        amount: ENTRY_PRICE,
-        currency: ENTRY_CURRENCY,
-        status: "pending",
-        attempts_total: ENTRY_ATTEMPTS,
-        challenge_code: data.challengeCode ?? null,
-      })
-      .select("id")
-      .single();
-    if (error || !payment) throw new Error("Could not start checkout");
-
-    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
-    const productId = process.env["DODO_PRODUCT_ID"];
-
-    // No live credentials yet: run the flow in clearly-marked test mode so the
-    // full product is usable end to end. Real money never moves here.
-    if (!apiKey || !productId) {
-      await db
-        .from("payments")
-        .update({
-          status: "succeeded",
-          test_mode: true,
-          provider_payment_id: `test_${payment.id}`,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", payment.id);
-      return { mode: "test" as const, paymentId: payment.id, profileId: profile.id };
-    }
-
-    const res = await fetch(`${DODO_BASE()}/checkouts`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        product_cart: [{ product_id: productId, quantity: 1 }],
-        return_url: data.returnUrl,
-        metadata: { payment_id: payment.id, profile_id: profile.id },
-        customer: { name: profile.nickname, email: `player+${profile.id}@example.invalid` },
-      }),
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.error("[dodo] checkout failed", res.status, detail);
-      await db.from("payments").update({ status: "failed" }).eq("id", payment.id);
-      throw new Error(
-        res.status === 401
-          ? "Payment provider rejected our credentials. Please contact support."
-          : "Payment provider unavailable. Please try again.",
-      );
-    }
-    const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string; id?: string };
-    const url = json.checkout_url ?? json.payment_link;
-    if (!url) throw new Error("Payment provider returned no checkout link.");
-    
-    const providerId = json.session_id ?? json.id;
-    if (providerId) {
-      await db.from("payments").update({ provider_payment_id: providerId }).eq("id", payment.id);
-    }
-    return { mode: "redirect" as const, url, paymentId: payment.id, profileId: profile.id };
-  });
-
-/** Current paid entry (if any) for this device. */
+/** Learn whether this device already has a custom nickname/country on file. */
 export const getEntry = createServerFn({ method: "POST" })
   .inputValidator((i: { secret: string }) => z.object({ secret: z.string().min(8).max(200) }).parse(i))
   .handler(async ({ data }) => {
@@ -628,18 +542,7 @@ export const getEntry = createServerFn({ method: "POST" })
       .select("id, nickname, country, best_score, games_played, has_custom_nickname")
       .eq("secret_hash", hash)
       .maybeSingle();
-    if (!profile) return { profile: null, entry: null };
-
-    const { data: payment } = await db
-      .from("payments")
-      .select("id, status, attempts_total, attempts_used, challenge_code, test_mode, created_at")
-      .eq("profile_id", profile.id)
-      .eq("status", "succeeded")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    const active = (payment ?? []).find((p) => p.attempts_used < p.attempts_total) ?? null;
-    return { profile, entry: active };
+    return { profile: profile ?? null };
   });
 
 /* ----------------------------------------------------------- game session */
@@ -988,83 +891,6 @@ export const completeChallenge = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Belt-and-braces payment confirmation.
- * The webhook is the source of truth, but if the player comes back from the
- * checkout before the webhook lands (or the redirect is lost), this asks Dodo
- * directly so nobody is left without the entry they paid for.
- */
-export const verifyPayment = createServerFn({ method: "POST" })
-  .inputValidator((i: { secret: string }) =>
-    z.object({ secret: z.string().min(8).max(200) }).parse(i),
-  )
-  .handler(async ({ data }) => {
-    rateLimit(`verify:${data.secret.slice(0, 12)}`, 30, 60000);
-    const db = await admin();
-    const { data: profile } = await db
-      .from("profiles")
-      .select("id")
-      .eq("secret_hash", await sha256(data.secret))
-      .maybeSingle();
-    if (!profile) return { status: "none" as const, attemptsRemaining: 0 };
-
-    const { data: payments } = await db
-      .from("payments")
-      .select("id, status, provider_payment_id, attempts_total, attempts_used, created_at")
-      .eq("profile_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    const list = payments ?? [];
-    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
-
-    for (const p of list) {
-      if (p.status !== "pending" || !apiKey || !p.provider_payment_id) continue;
-      try {
-        const res = await fetch(`${DODO_BASE()}/payments/${p.provider_payment_id}`, {
-          headers: { authorization: `Bearer ${apiKey}` },
-        });
-        if (!res.ok) continue;
-        const json = (await res.json()) as { status?: string; payment_id?: string };
-        const s = (json.status ?? "").toLowerCase();
-        if (s === "succeeded" || s === "paid") {
-          await db
-            .from("payments")
-            .update({
-              status: "succeeded",
-              provider_payment_id: json.payment_id ?? p.provider_payment_id,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", p.id)
-            .eq("status", "pending"); // idempotent: never re-entitle
-          p.status = "succeeded";
-        } else if (s === "failed" || s === "cancelled") {
-          await db
-            .from("payments")
-            .update({ status: s === "failed" ? "failed" : "cancelled", updated_at: new Date().toISOString() })
-            .eq("id", p.id);
-          p.status = s;
-        }
-      } catch {
-        // Network hiccup — the webhook will still settle this payment.
-      }
-    }
-
-    const entry = list.find((p) => p.status === "succeeded" && p.attempts_used < p.attempts_total);
-    if (entry) {
-      return {
-        status: "paid" as const,
-        attemptsRemaining: entry.attempts_total - entry.attempts_used,
-      };
-    }
-    const latest = list[0];
-    if (latest?.status === "failed" || latest?.status === "cancelled") {
-      return { status: latest.status as "failed" | "cancelled", attemptsRemaining: 0 };
-    }
-    if (latest?.status === "pending") return { status: "pending" as const, attemptsRemaining: 0 };
-    return { status: "none" as const, attemptsRemaining: 0 };
-  });
-
 /* ---------------------------------------------------------- sponsor ladder */
 /**
  * Standalone, always-on paid ranking — not tied to game weeks or scores.
@@ -1294,12 +1120,21 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
       return { mode: "test" as const, bidId: bid.id as string };
     }
 
+    // Server-appends a claim marker to the return URL (rather than trusting
+    // whatever the client sent) so the page can reliably confirm/poll this
+    // exact bid once Dodo redirects the sponsor back.
+    const returnUrl = new URL(data.returnUrl);
+    returnUrl.searchParams.set("claim", bid.id);
+
     const res = await fetch(`${DODO_BASE()}/checkouts`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        product_cart: [{ product_id: productId, quantity: Math.round(data.amount) }],
-        return_url: data.returnUrl,
+        // A "Pay What You Want" product: `amount` (in cents) is the exact
+        // total charged, unlike a fixed-price product where only quantity
+        // can vary — the right mechanism for an arbitrary bid amount.
+        product_cart: [{ product_id: productId, quantity: 1, amount: Math.round(data.amount * 100) }],
+        return_url: returnUrl.toString(),
         metadata: { kind: "sponsor_bid", bid_id: bid.id, ladder_type: data.ladderType },
         customer: { name: data.tagline.slice(0, 60), email: `sponsor+${bid.id}@example.invalid` },
       }),
@@ -1315,15 +1150,70 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
           : "Payment provider unavailable. Please try again.",
       );
     }
-    const json = (await res.json()) as { checkout_url?: string; payment_link?: string; session_id?: string; id?: string };
-    const url = json.checkout_url ?? json.payment_link;
+    const json = (await res.json()) as {
+      checkout_url?: string | null;
+      payment_id?: string | null;
+      session_id?: string;
+    };
+    const url = json.checkout_url;
     if (!url) throw new Error("Payment provider returned no checkout link.");
 
-    const providerId = json.session_id ?? json.id;
+    const providerId = json.payment_id ?? json.session_id;
     if (providerId) {
       await db.from("sponsor_bids").update({ payment_reference: providerId }).eq("id", bid.id);
     }
     return { mode: "redirect" as const, url, bidId: bid.id as string };
+  });
+
+/**
+ * Belt-and-braces confirmation for one sponsor claim, used right after
+ * redirecting back from Dodo checkout. The webhook is the source of truth
+ * and usually wins the race; this asks Dodo directly as a fallback so a
+ * sponsor isn't left staring at "pending" if the webhook is delayed or lost.
+ */
+export const getSponsorClaimStatus = createServerFn({ method: "POST" })
+  .inputValidator((i: { bidId: string }) => z.object({ bidId: z.string().uuid() }).parse(i))
+  .handler(async ({ data }) => {
+    rateLimit(`sponsor-claim-status:${data.bidId}`, 20, 60000);
+    const db = await admin();
+    const { data: bid } = await db
+      .from("sponsor_bids")
+      .select("id, payment_status, payment_reference, amount, link_url")
+      .eq("id", data.bidId)
+      .maybeSingle();
+    if (!bid) return { status: "not_found" as const };
+    if (bid.payment_status === "succeeded") {
+      return { status: "succeeded" as const, amount: bid.amount, linkUrl: bid.link_url };
+    }
+    if (bid.payment_status === "failed") return { status: "failed" as const };
+
+    const apiKey = process.env["DODO_PAYMENTS_API_KEY"];
+    if (apiKey && bid.payment_reference && !bid.payment_reference.startsWith("test_")) {
+      try {
+        const res = await fetch(`${DODO_BASE()}/payments/${bid.payment_reference}`, {
+          headers: { authorization: `Bearer ${apiKey}` },
+        });
+        if (res.ok) {
+          const json = (await res.json()) as { status?: string };
+          const s = (json.status ?? "").toLowerCase();
+          if (s === "succeeded" || s === "paid") {
+            await db
+              .from("sponsor_bids")
+              .update({ payment_status: "succeeded", is_active: true })
+              .eq("id", bid.id)
+              .eq("payment_status", "pending"); // idempotent: never re-activate
+            return { status: "succeeded" as const, amount: bid.amount, linkUrl: bid.link_url };
+          }
+          if (s === "failed" || s === "cancelled") {
+            await db.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id).eq("payment_status", "pending");
+            return { status: "failed" as const };
+          }
+        }
+      } catch {
+        // Network hiccup — keep polling, the webhook may still land.
+      }
+    }
+    return { status: "pending" as const };
   });
 
 /** Admin moderation: verify / flag / reject a score and rebuild the player's best. */

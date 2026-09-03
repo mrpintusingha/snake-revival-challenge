@@ -43,6 +43,7 @@ import {
   claimSponsorRank,
   fetchLinkPreview,
   getHomeData,
+  getSponsorClaimStatus,
   getSponsorStandings,
   recordSponsorClick,
 } from "@/lib/api.functions";
@@ -208,6 +209,47 @@ export function SponsorLadder() {
   const fnClaim = useServerFn(claimSponsorRank);
   const fnClick = useServerFn(recordSponsorClick);
   const fnPreview = useServerFn(fetchLinkPreview);
+  const fnClaimStatus = useServerFn(getSponsorClaimStatus);
+
+  // Coming back from a real Dodo checkout: the return URL carries ?claim=<bidId>
+  // (set server-side in claimSponsorRank). Poll briefly for confirmation —
+  // the webhook is the source of truth and usually wins the race, this just
+  // gives the sponsor visible feedback instead of silently landing here.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const bidId = url.searchParams.get("claim");
+    if (!bidId) return;
+    url.searchParams.delete("claim");
+    window.history.replaceState({}, "", url.toString());
+
+    let cancelled = false;
+    (async () => {
+      for (let attempt = 0; attempt < 8 && !cancelled; attempt++) {
+        try {
+          const res = await fnClaimStatus({ data: { bidId } });
+          if (res.status === "succeeded") {
+            toast.success(`Payment confirmed — you're claimed at $${res.amount.toLocaleString()}!`);
+            void refetch();
+            return;
+          }
+          if (res.status === "failed") {
+            toast.error("Payment didn't go through — no charge was made. Try again whenever you're ready.");
+            return;
+          }
+        } catch {
+          // Network hiccup — keep polling.
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      if (!cancelled) {
+        toast("Still confirming your payment — refresh in a moment if your listing hasn't appeared yet.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [preview, setPreview] = useState<{ title: string | null; description: string | null } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
