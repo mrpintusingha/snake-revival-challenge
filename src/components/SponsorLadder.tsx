@@ -357,34 +357,6 @@ export function SponsorLadder() {
           {ladder === "daily" && " · resets at midnight UTC"}
         </p>
 
-        <div>
-          <div className="relative">
-            {faviconFor(linkUrl) && /\.[a-z]{2,}/i.test(linkUrl) ? (
-              <img
-                src={faviconFor(linkUrl)!}
-                alt=""
-                className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 rounded-sm"
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            ) : (
-              <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            )}
-            <input
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="Your product URL or @handle"
-              className="w-full rounded-full border border-input bg-secondary py-2 pr-9 pl-9 text-sm text-foreground outline-none focus:border-primary"
-            />
-            {previewLoading && (
-              <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
-            )}
-          </div>
-          {preview?.title && (
-            <p className="mt-1 truncate px-3 text-[10px] text-muted-foreground">
-              Fetched: <span className="text-foreground">{preview.title}</span>
-            </p>
-          )}
-        </div>
         <input
           value={tagline}
           onChange={(e) => setTagline(e.target.value)}
@@ -392,17 +364,48 @@ export function SponsorLadder() {
           placeholder="One-line tagline"
           className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
         />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
-        >
-          {SPONSOR_CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-[3]">
+            <div className="relative">
+              {faviconFor(linkUrl) && /\.[a-z]{2,}/i.test(linkUrl) ? (
+                <img
+                  src={faviconFor(linkUrl)!}
+                  alt=""
+                  className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 rounded-sm"
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+              ) : (
+                <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              )}
+              <input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="URL or @handle"
+                className="w-full rounded-full border border-input bg-secondary py-2 pr-9 pl-9 text-sm text-foreground outline-none focus:border-primary"
+              />
+              {previewLoading && (
+                <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
+              )}
+            </div>
+            {preview?.title && (
+              <p className="mt-1 truncate px-3 text-[10px] text-muted-foreground">
+                Fetched: <span className="text-foreground">{preview.title}</span>
+              </p>
+            )}
+          </div>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="min-w-0 flex-[2] rounded-full border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+          >
+            {SPONSOR_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <button
           type="button"

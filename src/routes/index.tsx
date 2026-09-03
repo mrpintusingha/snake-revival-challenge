@@ -409,7 +409,7 @@ function Landing() {
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
-        <div className="rise grid grid-cols-1 gap-10 pt-8 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+        <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[440px_minmax(0,1fr)_300px]">
           <div className="order-2 lg:order-1">
             <SponsorLadder />
           </div>
