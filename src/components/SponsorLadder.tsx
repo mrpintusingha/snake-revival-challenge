@@ -2,10 +2,26 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Crown, Loader2, Trophy } from "lucide-react";
+import {
+  Coins,
+  Crown,
+  Cpu,
+  Gamepad2,
+  Globe,
+  Loader2,
+  Medal,
+  Megaphone,
+  Sparkles,
+  Trophy,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { claimSponsorRank, getHomeData, getSponsorStandings, recordSponsorClick } from "@/lib/api.functions";
+
+type Ladder = "all_time" | "daily";
 
 type Standing = {
   id: string;
@@ -18,6 +34,24 @@ type Standing = {
 };
 
 type ActivityRow = { id: string; event_type: string; metadata: Record<string, unknown>; created_at: string };
+
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  "Apps & Tools": Wrench,
+  "AI & Infrastructure": Cpu,
+  Gaming: Gamepad2,
+  Marketing: Megaphone,
+  "Crypto & Web3": Coins,
+  Other: Sparkles,
+};
+
+function domainFor(url: string): string {
+  try {
+    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    return host.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 function faviconFor(url: string): string | null {
   try {
@@ -57,7 +91,75 @@ function activityLine(row: ActivityRow): string {
   }
 }
 
+function rankBadge(rank: number) {
+  if (rank === 1) return <Crown className="h-4 w-4 text-[oklch(0.83_0.15_85)]" aria-hidden />;
+  if (rank === 2) return <Medal className="h-4 w-4 text-zinc-300" aria-hidden />;
+  if (rank === 3) return <Medal className="h-4 w-4 text-[oklch(0.7_0.12_55)]" aria-hidden />;
+  return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
+}
+
+function SponsorRow({
+  rank,
+  s,
+  onOpen,
+  onClaimHere,
+}: {
+  rank: number;
+  s: Standing;
+  onOpen: (s: Standing) => void;
+  onClaimHere: () => void;
+}) {
+  const domain = domainFor(s.link_url);
+  const favicon = faviconFor(s.link_url);
+  const CategoryIcon = CATEGORY_ICON[s.category] ?? Sparkles;
+
+  return (
+    <li className="group relative">
+      <button
+        type="button"
+        onClick={onClaimHere}
+        className="absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground uppercase group-hover:block"
+      >
+        Claim this rank for ${(s.amount + SPONSOR_MIN_INCREMENT).toLocaleString()}
+      </button>
+      <a
+        href={s.link_url.startsWith("http") ? s.link_url : `https://${s.link_url}`}
+        target="_blank"
+        rel="noopener sponsored"
+        onClick={() => onOpen(s)}
+        className="flex gap-3 rounded border border-border/60 p-3 text-sm hover:border-primary"
+      >
+        <span className="flex w-6 shrink-0 justify-center pt-1">{rankBadge(rank)}</span>
+        {favicon ? (
+          <img src={favicon} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover" />
+        ) : (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-bold text-primary">
+            {domain.charAt(0).toUpperCase()}
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-start justify-between gap-2">
+            <span className="truncate font-bold">{domain}</span>
+            <span className="shrink-0 font-mono font-bold tabular-nums text-primary">${s.amount.toLocaleString()}</span>
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.tagline}</span>
+          <span className="mt-1 flex items-center gap-1.5 text-[10px] tracking-wide text-muted-foreground uppercase">
+            <CategoryIcon className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="truncate">
+              {s.category} · {timeAgo(s.created_at)}
+            </span>
+          </span>
+          <span className="mt-0.5 block text-[10px] text-muted-foreground/70">
+            {s.click_count.toLocaleString()} clicks · See details
+          </span>
+        </span>
+      </a>
+    </li>
+  );
+}
+
 export function SponsorLadder() {
+  const [ladder, setLadder] = useState<Ladder>("all_time");
   const [linkUrl, setLinkUrl] = useState("");
   const [category, setCategory] = useState<string>(SPONSOR_CATEGORIES[0]);
   const [tagline, setTagline] = useState("");
@@ -69,8 +171,8 @@ export function SponsorLadder() {
   const fnClick = useServerFn(recordSponsorClick);
 
   const { data, refetch } = useQuery({
-    queryKey: ["sponsor-standings"],
-    queryFn: () => getSponsorStandings() as Promise<Standing[]>,
+    queryKey: ["sponsor-standings", ladder],
+    queryFn: () => getSponsorStandings({ data: { ladder } }) as Promise<Standing[]>,
     staleTime: 10000,
     refetchInterval: 20000,
   });
@@ -81,11 +183,17 @@ export function SponsorLadder() {
   const activity = ((home?.activity ?? []) as ActivityRow[]).slice(0, 5);
 
   const standings = data ?? [];
-  const champion = standings[0] ?? null;
-  const rest = standings.slice(1);
-  const topAmount = champion?.amount ?? 0;
+  const top3 = standings.slice(0, 3);
+  const rest = standings.slice(3);
+  const topAmount = standings[0]?.amount ?? 0;
   const floorAmount = topAmount + SPONSOR_MIN_INCREMENT;
   const effectiveAmount = amountTouched ? Math.max(amount, floorAmount) : floorAmount;
+
+  const switchLadder = (next: Ladder) => {
+    if (next === ladder) return;
+    setLadder(next);
+    setAmountTouched(false);
+  };
 
   const claim = async (targetAmount: number) => {
     if (linkUrl.trim().length < 4) {
@@ -97,7 +205,7 @@ export function SponsorLadder() {
       return;
     }
     setBusy(true);
-    track("sponsor_claim_clicked", { amount: targetAmount });
+    track("sponsor_claim_clicked", { amount: targetAmount, ladder });
     try {
       const res = await fnClaim({
         data: {
@@ -106,6 +214,7 @@ export function SponsorLadder() {
           tagline: tagline.trim(),
           amount: targetAmount,
           returnUrl: `${window.location.origin}/`,
+          ladderType: ladder,
         },
       });
       if (res.mode === "redirect") {
@@ -113,7 +222,7 @@ export function SponsorLadder() {
         return;
       }
       toast.success("You're #1 — claim confirmed (test mode)");
-      track("sponsor_claim_completed", { mode: "test" });
+      track("sponsor_claim_completed", { mode: "test", ladder });
       setLinkUrl("");
       setTagline("");
       setAmountTouched(false);
@@ -127,7 +236,12 @@ export function SponsorLadder() {
 
   const onClickListing = (s: Standing) => {
     void fnClick({ data: { bidId: s.id } });
-    track("sponsor_listing_clicked", { bidId: s.id });
+    track("sponsor_listing_clicked", { bidId: s.id, ladder });
+  };
+
+  const claimHereFor = (s: Standing) => {
+    setAmount(s.amount + SPONSOR_MIN_INCREMENT);
+    setAmountTouched(true);
   };
 
   return (
@@ -136,37 +250,36 @@ export function SponsorLadder() {
         <Trophy className="h-4 w-4 text-primary" aria-hidden />
         <h2 className="pixel text-[11px] text-primary sm:text-sm">OUTBID FOR #1</h2>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground uppercase tracking-wide">Your brand could own this screen.</p>
+      <p className="mt-2 text-xs tracking-wide text-muted-foreground uppercase">Your brand could own this screen.</p>
 
-      {/* Champion card */}
-      <div className="neon-border-gold mt-4 rounded p-4 text-center">
-        <Crown className="mx-auto h-6 w-6 text-[oklch(0.83_0.15_85)]" aria-hidden />
-        <p className="mt-1 text-[10px] tracking-widest text-muted-foreground uppercase">#1 Champion</p>
-        {champion ? (
-          <>
-            <p className="mt-1 truncate font-bold text-primary">{champion.link_url}</p>
-            <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-foreground">
-              ${champion.amount.toLocaleString()}
-            </p>
-            <p className="mt-1 text-[10px] tracking-widest text-muted-foreground uppercase">Current screen owner</p>
-          </>
-        ) : (
-          <>
-            <p className="mt-2 text-sm font-bold text-foreground">Be the first champion</p>
-            <p className="mt-1 text-xs text-muted-foreground">Claim #1 for just ${SPONSOR_MIN_INCREMENT}</p>
-          </>
-        )}
+      {/* All-time / Today toggle */}
+      <div className="mt-4 flex rounded-full border border-border bg-secondary/40 p-1 text-[11px] font-bold tracking-wide uppercase">
+        <button
+          type="button"
+          onClick={() => switchLadder("all_time")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 transition-colors",
+            ladder === "all_time" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Trophy className="h-3.5 w-3.5" aria-hidden /> All-time
+        </button>
+        <button
+          type="button"
+          onClick={() => switchLadder("daily")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 transition-colors",
+            ladder === "daily" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden /> Today
+        </button>
       </div>
 
-      {/* Bid box */}
+      {/* Claim box */}
       <div className="mt-4 space-y-3 rounded border border-border p-4">
-        <div className="flex items-center justify-between text-xs tracking-widest text-muted-foreground uppercase">
-          <span>Current bid</span>
-          <span className="font-mono font-bold text-foreground">${topAmount.toLocaleString()}</span>
-        </div>
-
         <div className="flex items-center justify-between">
-          <span className="text-xs tracking-widest text-muted-foreground uppercase">Your bid</span>
+          <span className="text-sm font-bold tracking-wide uppercase">Claim #1 for</span>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -179,7 +292,7 @@ export function SponsorLadder() {
             >
               −
             </button>
-            <span className="font-mono text-lg font-bold text-primary tabular-nums">
+            <span className="font-mono text-xl font-bold text-primary tabular-nums">
               ${effectiveAmount.toLocaleString()}
             </span>
             <button
@@ -195,46 +308,73 @@ export function SponsorLadder() {
             </button>
           </div>
         </div>
+        <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
+          Current top: ${topAmount.toLocaleString()}
+          {ladder === "daily" && " · resets at midnight UTC"}
+        </p>
 
-        <p className="text-center text-[10px] font-bold tracking-widest text-primary uppercase">🏆 You will be #1</p>
-
-        <div className="space-y-2 border-t border-border pt-3">
-          <p className="text-[9px] tracking-widest text-muted-foreground uppercase">Listing details</p>
+        <div className="relative">
+          <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="Your product URL or @handle"
-            className="w-full rounded border border-input bg-secondary px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary"
+            className="w-full rounded-full border border-input bg-secondary py-2 pr-3 pl-9 text-sm text-foreground outline-none focus:border-primary"
           />
-          <input
-            value={tagline}
-            onChange={(e) => setTagline(e.target.value)}
-            maxLength={80}
-            placeholder="One-line tagline"
-            className="w-full rounded border border-input bg-secondary px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded border border-input bg-secondary px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary"
-          >
-            {SPONSOR_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
         </div>
+        <input
+          value={tagline}
+          onChange={(e) => setTagline(e.target.value)}
+          maxLength={80}
+          placeholder="One-line tagline"
+          className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
+        />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
+        >
+          {SPONSOR_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
 
         <button
           type="button"
           disabled={busy}
           onClick={() => void claim(effectiveAmount)}
-          className="w-full rounded bg-primary px-4 py-3 text-sm font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90"
+          className="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90"
         >
-          {busy ? "One moment…" : "Take #1 — Outbid them"}
+          {busy ? "One moment…" : ladder === "daily" ? "Claim today's #1" : "Claim rank"}
         </button>
       </div>
+
+      {/* Top 3 — tinted zone, like outbid.lol's highlighted block */}
+      {top3.length > 0 ? (
+        <div className="mt-5 rounded-lg bg-primary/5 p-2">
+          <ol className="space-y-2">
+            {top3.map((s, i) => (
+              <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s)} />
+            ))}
+          </ol>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          {ladder === "daily" ? "No one has claimed today yet." : "Be the first sponsor."} Claim #1 for just $
+          {SPONSOR_MIN_INCREMENT}.
+        </div>
+      )}
+
+      {/* Ranks #4 and below */}
+      {rest.length > 0 && (
+        <ol className="mt-3 space-y-2">
+          {rest.map((s, i) => (
+            <SponsorRow key={s.id} rank={i + 4} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s)} />
+          ))}
+        </ol>
+      )}
 
       {/* Live activity — real activity_events, not fabricated sponsor history */}
       <div className="mt-5">
@@ -254,54 +394,6 @@ export function SponsorLadder() {
           {!activity.length && <li className="text-xs text-muted-foreground">No activity yet — be the first to play.</li>}
         </ul>
       </div>
-
-      {/* Ranks #2 and below */}
-      {rest.length > 0 && (
-        <ol className="mt-5 space-y-2">
-          {rest.map((s, i) => {
-            const rank = i + 2;
-            const claimPrice = s.amount + SPONSOR_MIN_INCREMENT;
-            const favicon = faviconFor(s.link_url);
-            return (
-              <li key={s.id} className="group relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAmount(claimPrice);
-                    setAmountTouched(true);
-                  }}
-                  className="absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground uppercase group-hover:block"
-                >
-                  Claim this rank for ${claimPrice.toLocaleString()}
-                </button>
-                <a
-                  href={s.link_url.startsWith("http") ? s.link_url : `https://${s.link_url}`}
-                  target="_blank"
-                  rel="noopener sponsored"
-                  onClick={() => onClickListing(s)}
-                  className="flex items-center gap-3 rounded border border-border p-2.5 text-sm hover:border-primary"
-                >
-                  <span className="w-6 shrink-0 text-left font-mono font-bold text-primary">#{rank}</span>
-                  {favicon ? (
-                    <img src={favicon} alt="" className="h-6 w-6 shrink-0 rounded-full" />
-                  ) : (
-                    <span className="h-6 w-6 shrink-0 rounded-full bg-secondary" />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold">{s.link_url}</span>
-                    <span className="block truncate text-[10px] tracking-wide text-muted-foreground uppercase">
-                      {s.category} · {s.click_count.toLocaleString()} clicks · {timeAgo(s.created_at)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 font-mono font-bold tabular-nums text-primary">
-                    ${s.amount.toLocaleString()}
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ol>
-      )}
     </section>
   );
 }

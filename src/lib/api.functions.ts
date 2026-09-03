@@ -1031,41 +1031,54 @@ export const verifyPayment = createServerFn({ method: "POST" })
  */
 
 const sponsorCategorySchema = z.enum(SPONSOR_CATEGORIES);
+const sponsorLadderSchema = z.enum(["all_time", "daily"]);
+type SponsorLadder = z.infer<typeof sponsorLadderSchema>;
 
-let sponsorStandingsCache: { data: any; expiresAt: number } | null = null;
-let sponsorStandingsPromise: Promise<any> | null = null;
+// Two independent ladders (all-time never resets, daily wipes at UTC
+// midnight) — cached separately so switching tabs never serves stale data
+// from the other one.
+const sponsorStandingsCache = new Map<SponsorLadder, { data: any; expiresAt: number }>();
+const sponsorStandingsPromise = new Map<SponsorLadder, Promise<any>>();
 
-export const getSponsorStandings = createServerFn({ method: "GET" }).handler(async () => {
-  const TTL = 15 * 1000;
-  const now = Date.now();
+export const getSponsorStandings = createServerFn({ method: "GET" })
+  .inputValidator((i: { ladder?: SponsorLadder | undefined } | undefined) =>
+    z.object({ ladder: sponsorLadderSchema.default("all_time") }).parse(i ?? {}),
+  )
+  .handler(async ({ data: input }) => {
+    const ladder = input.ladder;
+    const TTL = 15 * 1000;
+    const now = Date.now();
 
-  if (sponsorStandingsCache && now < sponsorStandingsCache.expiresAt) {
-    return sponsorStandingsCache.data;
-  }
-  if (sponsorStandingsPromise) return sponsorStandingsPromise;
+    const cached = sponsorStandingsCache.get(ladder);
+    if (cached && now < cached.expiresAt) return cached.data;
 
-  sponsorStandingsPromise = (async () => {
-    try {
-      const db = await publicDb();
-      const { data } = await db
-        .from("sponsor_standings")
-        .select("id, link_url, category, tagline, amount, click_count, created_at")
-        .order("amount", { ascending: false })
-        .limit(50);
-      const rows = data ?? [];
-      sponsorStandingsCache = { data: rows, expiresAt: Date.now() + TTL };
-      return rows;
-    } catch (e) {
-      console.error("[getSponsorStandings] Failed to fetch sponsor standings", e);
-      if (sponsorStandingsCache) return sponsorStandingsCache.data;
-      return [];
-    } finally {
-      sponsorStandingsPromise = null;
-    }
-  })();
+    const inflight = sponsorStandingsPromise.get(ladder);
+    if (inflight) return inflight;
 
-  return sponsorStandingsPromise;
-});
+    const promise = (async () => {
+      try {
+        const db = await publicDb();
+        const { data } = await db
+          .from(ladder === "daily" ? "sponsor_standings_daily" : "sponsor_standings")
+          .select("id, link_url, category, tagline, amount, click_count, created_at")
+          .order("amount", { ascending: false })
+          .limit(50);
+        const rows = data ?? [];
+        sponsorStandingsCache.set(ladder, { data: rows, expiresAt: Date.now() + TTL });
+        return rows;
+      } catch (e) {
+        console.error("[getSponsorStandings] Failed to fetch sponsor standings", e);
+        const stale = sponsorStandingsCache.get(ladder);
+        if (stale) return stale.data;
+        return [];
+      } finally {
+        sponsorStandingsPromise.delete(ladder);
+      }
+    })();
+
+    sponsorStandingsPromise.set(ladder, promise);
+    return promise;
+  });
 
 export const recordSponsorClick = createServerFn({ method: "POST" })
   .inputValidator((i: { bidId: string }) => z.object({ bidId: z.string().uuid() }).parse(i))
@@ -1085,7 +1098,14 @@ export const recordSponsorClick = createServerFn({ method: "POST" })
  */
 export const claimSponsorRank = createServerFn({ method: "POST" })
   .inputValidator(
-    (i: { linkUrl: string; category: string; tagline: string; amount: number; returnUrl: string }) =>
+    (i: {
+      linkUrl: string;
+      category: string;
+      tagline: string;
+      amount: number;
+      returnUrl: string;
+      ladderType?: SponsorLadder | undefined;
+    }) =>
       z
         .object({
           linkUrl: z.string().url().max(300),
@@ -1093,6 +1113,7 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
           tagline: z.string().trim().min(4).max(140),
           amount: z.number().int().min(SPONSOR_MIN_INCREMENT).max(1_000_000),
           returnUrl: z.string().url().max(500),
+          ladderType: sponsorLadderSchema.default("all_time"),
         })
         .parse(i),
   )
@@ -1105,6 +1126,7 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
       p_category: data.category,
       p_tagline: data.tagline,
       p_amount: data.amount,
+      p_ladder_type: data.ladderType,
     });
     if (claimError) {
       throw new Error(
@@ -1133,7 +1155,7 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
       body: JSON.stringify({
         product_cart: [{ product_id: productId, quantity: Math.round(data.amount) }],
         return_url: data.returnUrl,
-        metadata: { kind: "sponsor_bid", bid_id: bid.id },
+        metadata: { kind: "sponsor_bid", bid_id: bid.id, ladder_type: data.ladderType },
         customer: { name: data.tagline.slice(0, 60), email: `sponsor+${bid.id}@example.invalid` },
       }),
     });
