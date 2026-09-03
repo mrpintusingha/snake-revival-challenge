@@ -489,7 +489,7 @@ function Landing() {
 
           <div className="order-3 mt-2 lg:order-3 lg:mt-0">
             <section className="neon-border w-full rounded p-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2">
                 <Trophy className="h-4 w-4 text-primary" aria-hidden />
                 <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP RANKERS</h2>
               </div>
