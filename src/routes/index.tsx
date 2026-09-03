@@ -473,7 +473,7 @@ function Landing() {
 
   return (
     <div className="crt-grid min-h-screen">
-      <Header playersOnline={data?.playingNow} />
+      <Header />
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>

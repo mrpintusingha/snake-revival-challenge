@@ -123,6 +123,49 @@ async function verifyCheckpointData(token: string) {
 
 /* ------------------------------------------------------- public read data */
 
+/**
+ * Records a unique visit — idempotent, so it's safe to call opportunistically
+ * on every session. Counts anyone who loads the site, not just people who
+ * end up playing (profiles undercounts real traffic).
+ */
+export const recordVisit = createServerFn({ method: "POST" })
+  .inputValidator((i: { secret: string }) => z.object({ secret: z.string().min(8).max(200) }).parse(i))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const hash = await sha256(data.secret);
+    await db.from("site_visitors").upsert({ visitor_hash: hash }, { onConflict: "visitor_hash", ignoreDuplicates: true });
+    return { ok: true };
+  });
+
+let visitorStatsCache: { data: { totalVisitors: number }; expiresAt: number } | null = null;
+let visitorStatsPromise: Promise<{ totalVisitors: number }> | null = null;
+
+export const getVisitorStats = createServerFn({ method: "GET" }).handler(async () => {
+  const TTL = 30 * 1000;
+  const now = Date.now();
+
+  if (visitorStatsCache && now < visitorStatsCache.expiresAt) return visitorStatsCache.data;
+  if (visitorStatsPromise) return visitorStatsPromise;
+
+  visitorStatsPromise = (async () => {
+    try {
+      const db = await admin();
+      const { count } = await db.from("site_visitors").select("visitor_hash", { count: "exact", head: true });
+      const data = { totalVisitors: count ?? 0 };
+      visitorStatsCache = { data, expiresAt: Date.now() + TTL };
+      return data;
+    } catch (e) {
+      console.error("[getVisitorStats] Failed to fetch visitor stats", e);
+      if (visitorStatsCache) return visitorStatsCache.data;
+      return { totalVisitors: 0 };
+    } finally {
+      visitorStatsPromise = null;
+    }
+  })();
+
+  return visitorStatsPromise;
+});
+
 let homeDataCache: { data: any; expiresAt: number } | null = null;
 let homeDataPromise: Promise<any> | null = null;
 

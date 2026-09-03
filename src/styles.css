@@ -249,16 +249,16 @@
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 oklch(0.7 0.19 25 / 0.6);
+    box-shadow: 0 0 0 0 oklch(0.84 0.19 130 / 0.6);
   }
   50% {
     opacity: 0.6;
-    box-shadow: 0 0 0 4px oklch(0.7 0.19 25 / 0);
+    box-shadow: 0 0 0 4px oklch(0.84 0.19 130 / 0);
   }
 }
 
 @utility pulse-dot {
-  background-color: oklch(0.7 0.19 25);
+  background-color: oklch(0.84 0.19 130);
   animation: live-pulse 1.6s ease-in-out infinite;
 }
 

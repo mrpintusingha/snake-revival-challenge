@@ -435,6 +435,21 @@ export type Database = {
           },
         ]
       }
+      site_visitors: {
+        Row: {
+          first_seen: string
+          visitor_hash: string
+        }
+        Insert: {
+          first_seen?: string
+          visitor_hash: string
+        }
+        Update: {
+          first_seen?: string
+          visitor_hash?: string
+        }
+        Relationships: []
+      }
       sponsor_bids: {
         Row: {
           amount: number
@@ -443,9 +458,11 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          ladder_type: string
           link_url: string
           payment_reference: string | null
           payment_status: string
+          slot_date: string | null
           tagline: string
         }
         Insert: {
@@ -455,9 +472,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          ladder_type?: string
           link_url: string
           payment_reference?: string | null
           payment_status?: string
+          slot_date?: string | null
           tagline: string
         }
         Update: {
@@ -467,9 +486,11 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          ladder_type?: string
           link_url?: string
           payment_reference?: string | null
           payment_status?: string
+          slot_date?: string | null
           tagline?: string
         }
         Relationships: []
@@ -506,12 +527,43 @@ export type Database = {
         }
         Relationships: []
       }
+      sponsor_standings_daily: {
+        Row: {
+          amount: number | null
+          category: string | null
+          click_count: number | null
+          created_at: string | null
+          id: string | null
+          link_url: string | null
+          tagline: string | null
+        }
+        Insert: {
+          amount?: number | null
+          category?: string | null
+          click_count?: number | null
+          created_at?: string | null
+          id?: string | null
+          link_url?: string | null
+          tagline?: string | null
+        }
+        Update: {
+          amount?: number | null
+          category?: string | null
+          click_count?: number | null
+          created_at?: string | null
+          id?: string | null
+          link_url?: string | null
+          tagline?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       claim_sponsor_bid: {
         Args: {
           p_amount: number
           p_category: string
+          p_ladder_type?: string
           p_link_url: string
           p_tagline: string
         }
@@ -522,9 +574,11 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          ladder_type: string
           link_url: string
           payment_reference: string | null
           payment_status: string
+          slot_date: string | null
           tagline: string
         }
         SetofOptions: {

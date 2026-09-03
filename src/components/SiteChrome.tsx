@@ -1,24 +1,51 @@
+import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { BRAND } from "@/lib/config";
+import { getPlayerSecret } from "@/lib/player";
+import { getVisitorStats, recordVisit } from "@/lib/api.functions";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 
-export function Header({ playersOnline }: { playersOnline?: number | undefined }) {
+const VISIT_RECORDED_KEY = "snake90_visit_recorded";
+
+export function Header() {
+  const onlineCount = useOnlinePresence();
+  const fnRecordVisit = useServerFn(recordVisit);
+  const { data } = useQuery({
+    queryKey: ["visitor-stats"],
+    queryFn: () => getVisitorStats(),
+    staleTime: 30000,
+  });
+
+  // One real visit per tab session — the upsert is idempotent either way,
+  // this just avoids a redundant request on every route change.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem(VISIT_RECORDED_KEY)) return;
+    sessionStorage.setItem(VISIT_RECORDED_KEY, "1");
+    void fnRecordVisit({ data: { secret: getPlayerSecret() } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <header className="border-b border-border/60">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <div className="flex items-center gap-2 text-[10px] tracking-widest text-muted-foreground uppercase sm:text-xs">
-          <span className="h-2 w-2 rounded-full pulse-dot" aria-hidden />
-          <span className="font-bold text-foreground">Live</span>
-          {typeof playersOnline === "number" && (
-            <span className="hidden sm:inline">· {playersOnline.toLocaleString()} players online</span>
-          )}
-        </div>
-
-        <Link to="/" className="order-first flex flex-col items-center text-center sm:order-none">
+        <Link to="/" className="flex flex-col text-left">
           <span className="pixel text-[13px] text-primary sm:text-base">{BRAND.short}</span>
           <span className="mt-1 text-[9px] tracking-[0.2em] text-muted-foreground uppercase sm:text-[10px]">
             {BRAND.tagline1}
           </span>
         </Link>
+
+        <div className="order-first flex items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1.5 text-[10px] font-bold text-foreground sm:order-none sm:text-xs">
+          <span className="h-2 w-2 rounded-full pulse-dot" aria-hidden />
+          <span>{onlineCount ?? "…"} online</span>
+          <span className="text-muted-foreground" aria-hidden>
+            ·
+          </span>
+          <span>{(data?.totalVisitors ?? 0).toLocaleString()} visitors</span>
+        </div>
 
         <nav className="flex items-center gap-4 text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:text-xs">
           <Link to="/" className="text-primary hover:opacity-80" activeOptions={{ exact: true }}>
