@@ -176,18 +176,33 @@ function SponsorRow({
         target="_blank"
         rel="noopener sponsored"
         onClick={() => onOpen(s)}
-        className="flex gap-3 rounded border border-border/60 p-3 text-sm hover:border-primary"
+        className={cn(
+          "flex gap-3 rounded p-3 text-sm transition-colors",
+          rank === 1
+            ? "neon-border-gold bg-[oklch(0.83_0.15_85)]/10 hover:bg-[oklch(0.83_0.15_85)]/15"
+            : rank === 2 || rank === 3
+              ? "border border-primary/40 bg-primary/10 hover:border-primary"
+              : "border border-border/60 hover:border-primary",
+        )}
       >
         <span className="flex w-6 shrink-0 justify-center pt-1">{rankBadge(rank)}</span>
         {favicon && !faviconFailed ? (
           <img
             src={favicon}
             alt=""
-            className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover"
+            className={cn(
+              "h-9 w-9 shrink-0 rounded-lg border object-cover",
+              rank === 1 ? "border-[oklch(0.83_0.15_85)]/50" : "border-border",
+            )}
             onError={() => setFaviconFailed(true)}
           />
         ) : (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-bold text-primary">
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-sm font-bold text-primary",
+              rank === 1 ? "border-[oklch(0.83_0.15_85)]/50 bg-secondary" : "border-border bg-secondary",
+            )}
+          >
             {domain.charAt(0).toUpperCase()}
           </span>
         )}
@@ -332,11 +347,13 @@ export function SponsorLadder() {
 
   return (
     <section id="sponsor" className="neon-border w-full rounded p-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <Trophy className="h-4 w-4 text-primary" aria-hidden />
         <h2 className="pixel text-[11px] text-primary sm:text-sm">OUTBID FOR #1</h2>
       </div>
-      <p className="mt-2 text-xs tracking-wide text-muted-foreground uppercase">Your brand could own this screen.</p>
+      <p className="mt-2 text-center text-xs tracking-wide text-muted-foreground uppercase">
+        Your brand could own this screen.
+      </p>
 
       {/* All-time / Today toggle */}
       <div className="mt-4 flex rounded-full border border-border bg-secondary/40 p-1 text-[11px] font-bold tracking-wide uppercase">
@@ -373,13 +390,27 @@ export function SponsorLadder() {
                 setAmountTouched(true);
                 setAmount((a) => Math.max(floorAmount, (amountTouched ? a : floorAmount) - 1));
               }}
-              className="h-6 w-6 rounded-full border border-border text-xs hover:bg-accent"
+              className="h-6 w-6 shrink-0 rounded-full border border-border text-xs hover:bg-accent"
               aria-label="Decrease amount"
             >
               −
             </button>
-            <span className="font-mono text-xl font-bold text-primary tabular-nums">
-              ${effectiveAmount.toLocaleString()}
+            <span className="flex items-center gap-0.5 font-mono text-xl font-bold text-primary">
+              $
+              <input
+                type="text"
+                inputMode="numeric"
+                value={amountTouched ? amount || "" : floorAmount}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 7);
+                  setAmountTouched(true);
+                  setAmount(digits ? Number(digits) : 0);
+                }}
+                onFocus={() => setAmountTouched(true)}
+                onBlur={() => setAmount((a) => Math.max(a, floorAmount))}
+                aria-label="Your bid amount"
+                className="w-24 bg-transparent tabular-nums outline-none"
+              />
             </span>
             <button
               type="button"
@@ -387,7 +418,7 @@ export function SponsorLadder() {
                 setAmountTouched(true);
                 setAmount((amountTouched ? amount : floorAmount) + 1);
               }}
-              className="h-6 w-6 rounded-full border border-border text-xs hover:bg-accent"
+              className="h-6 w-6 shrink-0 rounded-full border border-border text-xs hover:bg-accent"
               aria-label="Increase amount"
             >
               +
@@ -459,9 +490,9 @@ export function SponsorLadder() {
         </button>
       </div>
 
-      {/* Top 3 — tinted zone, like outbid.lol's highlighted block */}
+      {/* Top 3 — each row carries its own highlight (gold for #1, tinted green for #2/#3) */}
       {top3.length > 0 ? (
-        <div className="mt-5 rounded-lg bg-primary/5 p-2">
+        <div className="mt-5 rounded-lg border border-border/30 p-2">
           <ol className="space-y-2">
             {top3.map((s, i) => (
               <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s)} />
