@@ -373,12 +373,9 @@ export function SponsorLadder() {
         <Trophy className="h-4 w-4 text-primary" aria-hidden />
         <h2 className="pixel text-[11px] text-primary sm:text-sm">OUTBID FOR #1</h2>
       </div>
-      <p className="mt-2 text-center text-xs tracking-wide text-muted-foreground uppercase">
-        Your brand could own this screen.
-      </p>
 
       {/* All-time / Today toggle */}
-      <div className="mt-4 flex rounded-full border border-border bg-secondary/40 p-1 text-[11px] font-bold tracking-wide uppercase">
+      <div className="mt-3 flex rounded-full border border-border bg-secondary/40 p-1 text-[11px] font-bold tracking-wide uppercase">
         <button
           type="button"
           onClick={() => switchLadder("all_time")}
@@ -448,10 +445,6 @@ export function SponsorLadder() {
             </button>
           </div>
         </div>
-        <p className="text-[10px] tracking-widest text-muted-foreground uppercase">
-          Current top: ${topAmount.toLocaleString()}
-          {ladder === "daily" && " · resets at midnight UTC"}
-        </p>
 
         <div className="flex gap-2">
           <div className="min-w-0 flex-[3]">
