@@ -414,7 +414,10 @@ function Landing() {
             <SponsorLadder />
           </div>
 
-          <div className="order-1 lg:order-2">{gameColumn}</div>
+          <div className="order-1 lg:order-2">
+            <StatusBar playersOnline={data?.playingNow} gamesToday={data?.gamesToday} topScoreToday={data?.topScoreToday} />
+            {gameColumn}
+          </div>
 
           <div className="order-3 mt-2 lg:order-3 lg:mt-0">
             <section className="neon-border w-full rounded p-4">
@@ -481,8 +484,6 @@ function Landing() {
             </a>
           </div>
         </div>
-
-        <StatusBar playersOnline={data?.playingNow} gamesToday={data?.gamesToday} topScoreToday={data?.topScoreToday} />
       </main>
 
       <Footer />

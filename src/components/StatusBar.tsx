@@ -43,7 +43,7 @@ export function StatusBar({
   };
 
   return (
-    <div className="neon-border mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded px-5 py-3">
+    <div className="neon-border mx-auto mb-6 grid w-full max-w-[360px] grid-cols-2 gap-x-4 gap-y-3 rounded px-4 py-3">
       <Stat icon={<Users className="h-4 w-4" />} label="Players online" value={(playersOnline ?? 0).toLocaleString()} />
       <Stat icon={<Gamepad2 className="h-4 w-4" />} label="Games played today" value={(gamesToday ?? 0).toLocaleString()} />
       <Stat icon={<Star className="h-4 w-4" />} label="Today's high score" value={(topScoreToday ?? 0).toLocaleString()} />
@@ -57,26 +57,24 @@ export function StatusBar({
         type="button"
         onClick={toggleSound}
         aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
-        className="flex items-center gap-2"
+        className="col-span-2 flex items-center justify-center gap-2 border-t border-border/60 pt-3"
       >
         {soundEnabled ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
-        <span className="flex flex-col leading-tight text-left">
+        <span className="flex items-center gap-2 leading-tight">
           <span className="text-[9px] tracking-widest text-muted-foreground uppercase">Sound</span>
-          <span className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-foreground">{soundEnabled ? "On" : "Off"}</span>
-            <span className="flex items-end gap-[2px]" aria-hidden>
-              {[3, 6, 10, 6, 3].map((h, i) => (
-                <span
-                  key={i}
-                  className="w-[2px] rounded-full bg-primary"
-                  style={{
-                    height: h,
-                    opacity: soundEnabled ? 1 : 0.25,
-                    animation: soundEnabled ? `soundbar 0.9s ease-in-out ${i * 0.1}s infinite` : "none",
-                  }}
-                />
-              ))}
-            </span>
+          <span className="font-mono text-sm font-bold text-foreground">{soundEnabled ? "On" : "Off"}</span>
+          <span className="flex items-end gap-[2px]" aria-hidden>
+            {[3, 6, 10, 6, 3].map((h, i) => (
+              <span
+                key={i}
+                className="w-[2px] rounded-full bg-primary"
+                style={{
+                  height: h,
+                  opacity: soundEnabled ? 1 : 0.25,
+                  animation: soundEnabled ? `soundbar 0.9s ease-in-out ${i * 0.1}s infinite` : "none",
+                }}
+              />
+            ))}
           </span>
         </span>
       </button>
