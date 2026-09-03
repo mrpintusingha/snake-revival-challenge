@@ -46,6 +46,7 @@ import {
   recordSponsorClick,
 } from "@/lib/api.functions";
 import { useSponsorClaimForm } from "@/hooks/useSponsorClaimForm";
+import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 
 type Ladder = "all_time" | "daily";
 
@@ -198,6 +199,7 @@ function SponsorRow({
 
 export function SponsorLadder() {
   const [ladder, setLadder] = useState<Ladder>("all_time");
+  const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
 
   const fnClick = useServerFn(recordSponsorClick);
   const fnClaimStatus = useServerFn(getSponsorClaimStatus);
@@ -273,11 +275,16 @@ export function SponsorLadder() {
     track("sponsor_listing_clicked", { bidId: s.id, ladder });
   };
 
-  const claimHereFor = (s: Standing) => {
-    form.setToAmount(s.amount + SPONSOR_MIN_INCREMENT);
+  // Opens the same per-rank claim modal used by the homepage's Top Rankers
+  // column — a sponsor claiming rank #7 (say) fills the form right there
+  // instead of having its amount silently dropped into the box above, which
+  // is always labeled "Claim #1 for" and would show the wrong rank number.
+  const claimHereFor = (s: Standing, rank: number) => {
+    setClaimTarget({ rank, amount: s.amount, linkUrl: s.link_url });
   };
 
   return (
+    <>
     <section id="sponsor" className="neon-border w-full rounded p-4">
       <div className="flex items-center justify-center gap-2">
         <Trophy className="h-4 w-4 text-primary" aria-hidden />
@@ -426,7 +433,7 @@ export function SponsorLadder() {
         <div className="mt-5 rounded-lg border border-border/30 p-2">
           <ol className="space-y-2">
             {top3.map((s, i) => (
-              <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s)} />
+              <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 1)} />
             ))}
           </ol>
         </div>
@@ -441,7 +448,7 @@ export function SponsorLadder() {
       {rest.length > 0 && (
         <ol className="mt-3 space-y-2">
           {rest.map((s, i) => (
-            <SponsorRow key={s.id} rank={i + 4} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s)} />
+            <SponsorRow key={s.id} rank={i + 4} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 4)} />
           ))}
         </ol>
       )}
@@ -465,5 +472,10 @@ export function SponsorLadder() {
         </ul>
       </div>
     </section>
+
+    {claimTarget && (
+      <ClaimModal target={claimTarget} onClose={() => setClaimTarget(null)} onClaimed={() => void refetch()} />
+    )}
+    </>
   );
 }
