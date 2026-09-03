@@ -1034,6 +1034,108 @@ const sponsorCategorySchema = z.enum(SPONSOR_CATEGORIES);
 const sponsorLadderSchema = z.enum(["all_time", "daily"]);
 type SponsorLadder = z.infer<typeof sponsorLadderSchema>;
 
+// Hostnames a link-preview fetch must never be allowed to reach — loopback,
+// private ranges, and cloud metadata endpoints. This is a best-effort literal
+// blocklist (no DNS-resolution check), sufficient for a low-stakes preview
+// feature but not a substitute for a real egress-controlled fetch proxy.
+const BLOCKED_PREVIEW_HOSTS = [
+  /^localhost$/i,
+  /^127\./,
+  /^0\.0\.0\.0$/,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^::1$/,
+  /\.local$/i,
+  /^metadata\.google\.internal$/i,
+];
+
+function extractMetaContent(html: string, attr: "property" | "name", key: string): string | null {
+  const tagRe = new RegExp(`<meta[^>]*${attr}=["']${key}["'][^>]*>`, "i");
+  const tag = html.match(tagRe)?.[0];
+  const contentMatch = tag?.match(/content=["']([^"']*)["']/i);
+  if (contentMatch?.[1]) return contentMatch[1];
+  // Attribute order can vary (content before the key attribute).
+  const reversed = new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${key}["']`, "i");
+  return html.match(reversed)?.[1] ?? null;
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+
+/** Fetches just enough of a page's <head> to pull a title/description for the claim-form preview. */
+async function fetchPageMeta(rawUrl: string): Promise<{ title: string | null; description: string | null }> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`);
+  } catch {
+    return { title: null, description: null };
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return { title: null, description: null };
+  if (BLOCKED_PREVIEW_HOSTS.some((re) => re.test(url.hostname))) return { title: null, description: null };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(url.toString(), {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: { "user-agent": "Mozilla/5.0 (compatible; SnakeLinkPreview/1.0)" },
+    });
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/html")) return { title: null, description: null };
+
+    const reader = res.body?.getReader();
+    let html = "";
+    if (reader) {
+      const decoder = new TextDecoder();
+      let total = 0;
+      while (total < 100_000) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        html += decoder.decode(value, { stream: true });
+        total += value.length;
+        if (/<\/head>/i.test(html)) break;
+      }
+      await reader.cancel().catch(() => {});
+    } else {
+      html = (await res.text()).slice(0, 100_000);
+    }
+
+    const titleTag = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? null;
+    const ogTitle = extractMetaContent(html, "property", "og:title");
+    const ogDescription = extractMetaContent(html, "property", "og:description");
+    const metaDescription = extractMetaContent(html, "name", "description");
+
+    const title = ogTitle ?? titleTag;
+    const description = ogDescription ?? metaDescription;
+    return {
+      title: title ? decodeEntities(title).slice(0, 140) : null,
+      description: description ? decodeEntities(description).slice(0, 140) : null,
+    };
+  } catch {
+    return { title: null, description: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Live preview for the sponsor claim form: favicon is derived client-side, this just fetches title/description. */
+export const fetchLinkPreview = createServerFn({ method: "POST" })
+  .inputValidator((i: { url: string }) => z.object({ url: z.string().min(4).max(300) }).parse(i))
+  .handler(async ({ data }) => {
+    rateLimit(`link-preview:${data.url.slice(0, 60)}`, 20, 60000);
+    return fetchPageMeta(data.url);
+  });
+
 // Two independent ladders (all-time never resets, daily wipes at UTC
 // midnight) — cached separately so switching tabs never serves stale data
 // from the other one.

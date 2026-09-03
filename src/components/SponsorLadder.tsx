@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -19,7 +19,13 @@ import {
 import { cn } from "@/lib/utils";
 import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
-import { claimSponsorRank, getHomeData, getSponsorStandings, recordSponsorClick } from "@/lib/api.functions";
+import {
+  claimSponsorRank,
+  fetchLinkPreview,
+  getHomeData,
+  getSponsorStandings,
+  recordSponsorClick,
+} from "@/lib/api.functions";
 
 type Ladder = "all_time" | "daily";
 
@@ -111,6 +117,7 @@ function SponsorRow({
 }) {
   const domain = domainFor(s.link_url);
   const favicon = faviconFor(s.link_url);
+  const [faviconFailed, setFaviconFailed] = useState(false);
   const CategoryIcon = CATEGORY_ICON[s.category] ?? Sparkles;
 
   return (
@@ -130,8 +137,13 @@ function SponsorRow({
         className="flex gap-3 rounded border border-border/60 p-3 text-sm hover:border-primary"
       >
         <span className="flex w-6 shrink-0 justify-center pt-1">{rankBadge(rank)}</span>
-        {favicon ? (
-          <img src={favicon} alt="" className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover" />
+        {favicon && !faviconFailed ? (
+          <img
+            src={favicon}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover"
+            onError={() => setFaviconFailed(true)}
+          />
         ) : (
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-sm font-bold text-primary">
             {domain.charAt(0).toUpperCase()}
@@ -169,6 +181,38 @@ export function SponsorLadder() {
 
   const fnClaim = useServerFn(claimSponsorRank);
   const fnClick = useServerFn(recordSponsorClick);
+  const fnPreview = useServerFn(fetchLinkPreview);
+
+  const [preview, setPreview] = useState<{ title: string | null; description: string | null } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // As soon as the URL looks plausible, fetch its title/description (debounced)
+  // to preview + prefill the tagline — the favicon itself needs no round trip,
+  // it's derived client-side from the domain via faviconFor() below.
+  useEffect(() => {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    const trimmed = linkUrl.trim();
+    if (trimmed.length < 4 || !/\.[a-z]{2,}/i.test(trimmed)) {
+      setPreview(null);
+      setPreviewLoading(false);
+      return;
+    }
+    setPreviewLoading(true);
+    previewTimer.current = setTimeout(() => {
+      fnPreview({ data: { url: trimmed } })
+        .then((res) => {
+          setPreview(res);
+          setTagline((current) => (current.trim() ? current : (res.description ?? res.title ?? current)));
+        })
+        .catch(() => setPreview(null))
+        .finally(() => setPreviewLoading(false));
+    }, 600);
+    return () => {
+      if (previewTimer.current) clearTimeout(previewTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkUrl]);
 
   const { data, refetch } = useQuery({
     queryKey: ["sponsor-standings", ladder],
@@ -313,14 +357,33 @@ export function SponsorLadder() {
           {ladder === "daily" && " · resets at midnight UTC"}
         </p>
 
-        <div className="relative">
-          <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <input
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="Your product URL or @handle"
-            className="w-full rounded-full border border-input bg-secondary py-2 pr-3 pl-9 text-sm text-foreground outline-none focus:border-primary"
-          />
+        <div>
+          <div className="relative">
+            {faviconFor(linkUrl) && /\.[a-z]{2,}/i.test(linkUrl) ? (
+              <img
+                src={faviconFor(linkUrl)!}
+                alt=""
+                className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 rounded-sm"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            ) : (
+              <Globe className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            )}
+            <input
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="Your product URL or @handle"
+              className="w-full rounded-full border border-input bg-secondary py-2 pr-9 pl-9 text-sm text-foreground outline-none focus:border-primary"
+            />
+            {previewLoading && (
+              <Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
+            )}
+          </div>
+          {preview?.title && (
+            <p className="mt-1 truncate px-3 text-[10px] text-muted-foreground">
+              Fetched: <span className="text-foreground">{preview.title}</span>
+            </p>
+          )}
         </div>
         <input
           value={tagline}
@@ -347,7 +410,7 @@ export function SponsorLadder() {
           onClick={() => void claim(effectiveAmount)}
           className="w-full rounded-full bg-primary px-4 py-3 text-sm font-bold tracking-wide text-primary-foreground uppercase disabled:opacity-60 hover:opacity-90"
         >
-          {busy ? "One moment…" : ladder === "daily" ? "Claim today's #1" : "Claim rank"}
+          {busy ? "One moment…" : "Claim rank"}
         </button>
       </div>
 
