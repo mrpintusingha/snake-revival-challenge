@@ -3,17 +3,37 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
+  Bot,
+  Briefcase,
+  Building2,
+  CheckSquare,
   Coins,
+  Compass,
   Crown,
-  Cpu,
+  Code2,
   Gamepad2,
   Globe,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  Landmark,
   Loader2,
+  MapPin,
   Medal,
   Megaphone,
+  Mic,
+  MoreHorizontal,
+  Newspaper,
+  Palette,
+  PenLine,
+  Search,
+  Share2,
+  ShieldCheck,
+  ShoppingCart,
   Sparkles,
+  TrendingUp,
   Trophy,
-  Wrench,
+  UserCircle,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,12 +62,34 @@ type Standing = {
 type ActivityRow = { id: string; event_type: string; metadata: Record<string, unknown>; created_at: string };
 
 const CATEGORY_ICON: Record<string, LucideIcon> = {
-  "Apps & Tools": Wrench,
-  "AI & Infrastructure": Cpu,
-  Gaming: Gamepad2,
-  Marketing: Megaphone,
-  "Crypto & Web3": Coins,
-  Other: Sparkles,
+  "AI Agents & Infrastructure": Bot,
+  "SEO & AI Visibility": Search,
+  "Marketing & Advertising": Megaphone,
+  "Crypto, Web3 & Investing": Coins,
+  "Developer Tools": Code2,
+  "Business, Finance & Legal": Landmark,
+  "Security, Privacy & Compliance": ShieldCheck,
+  "Health, Fitness & Wellness": HeartPulse,
+  "Social Media & Creator Tools": Share2,
+  "Leaderboards & Attention Markets": Trophy,
+  "Hiring, Jobs & Careers": Briefcase,
+  "Education & Learning": GraduationCap,
+  "Agencies, Studios & Services": Building2,
+  "Ecommerce & Retail": ShoppingCart,
+  "Domains & Web Assets": Globe,
+  "Games & Entertainment": Gamepad2,
+  "People & Profiles": UserCircle,
+  "Productivity & Personal Tools": CheckSquare,
+  "Design & Creative": Palette,
+  "Writing & Content": PenLine,
+  "Directories, Launch & Discovery": Compass,
+  "AI Media Generation": Sparkles,
+  "Audio, Voice & Podcasting": Mic,
+  "Sales & Lead Generation": TrendingUp,
+  "Travel, Local & Lifestyle": MapPin,
+  "Real Estate & Property": Home,
+  "Media & News": Newspaper,
+  Other: MoreHorizontal,
 };
 
 function domainFor(url: string): string {
@@ -357,14 +399,6 @@ export function SponsorLadder() {
           {ladder === "daily" && " · resets at midnight UTC"}
         </p>
 
-        <input
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
-          maxLength={80}
-          placeholder="One-line tagline"
-          className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
-        />
-
         <div className="flex gap-2">
           <div className="min-w-0 flex-[3]">
             <div className="relative">
@@ -406,6 +440,14 @@ export function SponsorLadder() {
             ))}
           </select>
         </div>
+
+        <input
+          value={tagline}
+          onChange={(e) => setTagline(e.target.value)}
+          maxLength={80}
+          placeholder="One-line tagline"
+          className="w-full rounded-full border border-input bg-secondary px-3.5 py-2 text-sm text-foreground outline-none focus:border-primary"
+        />
 
         <button
           type="button"
