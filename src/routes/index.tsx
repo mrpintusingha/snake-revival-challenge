@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Crown, Medal, Trophy } from "lucide-react";
+import { ChevronDown, Crown, Medal, Trophy } from "lucide-react";
 import { SnakeGame } from "@/components/game/SnakeGame";
 import { NokiaFrame } from "@/components/NokiaFrame";
 import { LcdScreen } from "@/components/LcdScreen";
@@ -18,12 +18,12 @@ import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
 import { countryName, listCountries } from "@/lib/countries";
+import { cn } from "@/lib/utils";
 import {
   completeChallenge,
   createChallenge,
   getEntry,
   getHomeData,
-  getSuggestedCountry,
   getWeeklyLeaderboard,
   saveIdentity,
   startAttempt,
@@ -78,15 +78,6 @@ function Landing() {
     queryFn: () => getWeeklyLeaderboard(),
     staleTime: 20000,
   });
-  // Best-effort geo default for the country picker — absent outside Vercel
-  // (local dev), in which case the picker just starts blank.
-  const { data: geo } = useQuery({
-    queryKey: ["suggested-country"],
-    queryFn: () => getSuggestedCountry(),
-    staleTime: Infinity,
-  });
-  const suggestedCountryCode = geo?.code ?? "";
-
   // Silent, non-blocking: learn whether this device already has a custom
   // name and a country on file, independently — a returning player who
   // picked a name before country capture existed still needs the country
@@ -206,7 +197,7 @@ function Landing() {
       toast.error("Pick a nickname first");
       return;
     }
-    const country = countryName(saveCountry || suggestedCountryCode);
+    const country = countryName(saveCountry);
     setBusy(true);
     try {
       const profile = await fnSaveIdentity({
@@ -312,18 +303,29 @@ function Landing() {
                       className="min-w-0 flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                     />
                   )}
-                  <select
-                    value={saveCountry || suggestedCountryCode}
-                    onChange={(e) => setSaveCountry(e.target.value)}
-                    className="min-w-0 flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-                  >
-                    <option value="">Country (optional)</option>
-                    {countries.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.name}
+                  <div className="relative min-w-0 flex-1">
+                    <select
+                      value={saveCountry}
+                      onChange={(e) => setSaveCountry(e.target.value)}
+                      className={cn(
+                        "w-full appearance-none rounded border border-input bg-secondary py-2 pr-8 pl-3 text-sm outline-none focus:border-primary",
+                        saveCountry ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      <option value="" disabled>
+                        Country
                       </option>
-                    ))}
-                  </select>
+                      {countries.map((c) => (
+                        <option key={c.code} value={c.code} className="text-foreground">
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                  </div>
                 </div>
                 <button
                   type="button"
