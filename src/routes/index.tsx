@@ -52,6 +52,7 @@ type Battle = Awaited<ReturnType<typeof completeChallenge>>;
 function Landing() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [hasIdentity, setHasIdentity] = useState(false);
+  const [hasCountry, setHasCountry] = useState(false);
   const [busy, setBusy] = useState(false);
   const [attemptNumber, setAttemptNumber] = useState(1);
   const attemptCountRef = useRef(0);
@@ -86,10 +87,10 @@ function Landing() {
   });
   const suggestedCountryCode = geo?.code ?? "";
 
-  // Silent, non-blocking: learn whether this device already picked its own
-  // name so the "customize your name" prompt only shows to first-timers —
-  // everyone gets a fun auto-assigned name from their very first game, so
-  // there's never a bare/anonymous entry on the leaderboard either way.
+  // Silent, non-blocking: learn whether this device already has a custom
+  // name and a country on file, independently — a returning player who
+  // picked a name before country capture existed still needs the country
+  // prompt, so these can't share one flag.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -97,6 +98,7 @@ function Landing() {
         const res = await fnEntry({ data: { secret: getPlayerSecret() } });
         if (cancelled || !res.profile) return;
         if (res.profile.has_custom_nickname) setHasIdentity(true);
+        if (res.profile.country) setHasCountry(true);
         setStoredProfileId(res.profile.id);
       } catch {
         // empty — identity resolves lazily, never blocks play
@@ -197,18 +199,22 @@ function Landing() {
   );
 
   const saveScoreName = async () => {
-    if (saveName.trim().length < 2) {
+    // A returning player who already has a custom nickname is only here to
+    // add a country — keep their existing name rather than force a re-type.
+    const nickname = (saveName.trim() || result?.nickname || "").trim();
+    if (nickname.length < 2) {
       toast.error("Pick a nickname first");
       return;
     }
+    const country = countryName(saveCountry || suggestedCountryCode);
     setBusy(true);
     try {
-      const country = countryName(saveCountry || suggestedCountryCode);
       const profile = await fnSaveIdentity({
-        data: { secret: getPlayerSecret(), nickname: saveName.trim(), country },
+        data: { secret: getPlayerSecret(), nickname, country },
       });
       setStoredProfileId(profile.id);
       setHasIdentity(true);
+      if (profile.country) setHasCountry(true);
       setResult((r) => (r ? { ...r, nickname: profile.nickname, country: profile.country ?? r.country } : r));
       toast.success("Saved!");
       track("score_name_saved", { withCountry: Boolean(country) });
@@ -285,26 +291,30 @@ function Landing() {
             </NokiaFrame>
           </div>
 
-          {!hasIdentity && result && (
+          {(!hasIdentity || !hasCountry) && result && (
             <section className="rounded border border-primary/60 p-4 text-center">
               <p className="text-xs font-bold tracking-widest text-primary uppercase">
                 Personalize before you share
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                You're playing as {result.nickname} — add your name and country so your shared score looks like you.
+                {hasIdentity
+                  ? `You're playing as ${result.nickname} — add your country so your shared score looks like you.`
+                  : `You're playing as ${result.nickname} — add your name and country so your shared score looks like you.`}
               </p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={saveName}
-                  maxLength={18}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder={result.nickname}
-                  className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-                />
+                {!hasIdentity && (
+                  <input
+                    value={saveName}
+                    maxLength={18}
+                    onChange={(e) => setSaveName(e.target.value)}
+                    placeholder={result.nickname}
+                    className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                )}
                 <select
                   value={saveCountry || suggestedCountryCode}
                   onChange={(e) => setSaveCountry(e.target.value)}
-                  className="rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary sm:w-40"
+                  className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary sm:flex-none sm:w-40"
                 >
                   <option value="">Country (optional)</option>
                   {countries.map((c) => (
