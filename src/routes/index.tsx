@@ -294,40 +294,42 @@ function Landing() {
           {(!hasIdentity || !hasCountry) && result && (
             <section className="rounded border border-primary/60 p-4 text-center">
               <p className="text-xs font-bold tracking-widest text-primary uppercase">
-                Personalize before you share
+                Get your name on the leaderboard
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {hasIdentity
-                  ? `You're playing as ${result.nickname} — add your country so your shared score looks like you.`
-                  : `You're playing as ${result.nickname} — add your name and country so your shared score looks like you.`}
+                  ? `You're playing as ${result.nickname} — add your country so it's really you up there.`
+                  : `You're playing as ${result.nickname} — add your name and country so it's really you up there.`}
               </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                {!hasIdentity && (
-                  <input
-                    value={saveName}
-                    maxLength={18}
-                    onChange={(e) => setSaveName(e.target.value)}
-                    placeholder={result.nickname}
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {!hasIdentity && (
+                    <input
+                      value={saveName}
+                      maxLength={18}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      placeholder={result.nickname}
+                      className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  )}
+                  <select
+                    value={saveCountry || suggestedCountryCode}
+                    onChange={(e) => setSaveCountry(e.target.value)}
                     className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-                  />
-                )}
-                <select
-                  value={saveCountry || suggestedCountryCode}
-                  onChange={(e) => setSaveCountry(e.target.value)}
-                  className="flex-1 rounded border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary sm:flex-none sm:w-40"
-                >
-                  <option value="">Country (optional)</option>
-                  {countries.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  >
+                    <option value="">Country (optional)</option>
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={saveScoreName}
-                  className="rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-60"
+                  className="w-full rounded bg-primary px-4 py-2 text-sm font-bold uppercase text-primary-foreground disabled:opacity-60"
                 >
                   Save
                 </button>
@@ -385,7 +387,9 @@ function Landing() {
 
           <section className="space-y-4 pt-4 border-t border-border">
             <p className="text-center text-xl sm:text-2xl font-bold leading-tight">
-              😈 WHO WAS BETTER AT SNAKE — YOU OR YOUR FRIENDS?
+              😈 WHO WAS BETTER AT SNAKE
+              <br />
+              YOU OR YOUR FRIENDS?
             </p>
             {!code ? (
               <button
