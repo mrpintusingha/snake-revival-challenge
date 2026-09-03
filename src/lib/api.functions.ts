@@ -1146,7 +1146,11 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
         product_cart: [{ product_id: productId, quantity: 1, amount: Math.round(data.amount * 100) }],
         return_url: returnUrl.toString(),
         metadata: { kind: "sponsor_bid", bid_id: bid.id, ladder_type: data.ladderType },
-        customer: { name: data.tagline.slice(0, 60), email: `sponsor+${bid.id}@example.invalid` },
+        // No fabricated name/email — our claim form never collects real
+        // contact info, so let Dodo's own hosted checkout ask the sponsor
+        // for their actual name/email directly rather than pre-filling
+        // wrong or fake data (a real @example.invalid placeholder would
+        // silently swallow their payment receipt).
       }),
     });
 
