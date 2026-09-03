@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
+import { domainFor, faviconFor, rankBadge, TIER_AVATAR_BORDER, TIER_ROW_CLASS } from "@/lib/sponsorDisplay";
 import {
   claimSponsorRank,
   fetchLinkPreview,
@@ -91,24 +92,6 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
   Other: MoreHorizontal,
 };
 
-function domainFor(url: string): string {
-  try {
-    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
-    return host.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
-function faviconFor(url: string): string | null {
-  try {
-    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
-    return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
-  } catch {
-    return null;
-  }
-}
-
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(ms / 60000);
@@ -137,38 +120,6 @@ function activityLine(row: ActivityRow): string {
       return `${name} made a move`;
   }
 }
-
-function rankBadge(rank: number) {
-  return (
-    <span
-      className={cn(
-        "font-mono text-xs font-bold",
-        rank === 1
-          ? "text-primary"
-          : rank === 2
-            ? "text-primary/70"
-            : rank === 3
-              ? "text-primary/50"
-              : "text-muted-foreground",
-      )}
-    >
-      #{rank}
-    </span>
-  );
-}
-
-// Deep / medium / light green — same brand green at descending intensity,
-// so the podium reads clearly without leaving the site's palette.
-const TIER_ROW_CLASS: Record<number, string> = {
-  1: "border border-primary bg-primary/25 shadow-[0_0_24px_-6px] shadow-primary/70 hover:bg-primary/30",
-  2: "border border-primary/65 bg-primary/15 shadow-[0_0_20px_-8px] shadow-primary/45 hover:bg-primary/19",
-  3: "border border-primary/40 bg-primary/8 shadow-[0_0_18px_-8px] shadow-primary/28 hover:bg-primary/11",
-};
-const TIER_AVATAR_BORDER: Record<number, string> = {
-  1: "border-primary",
-  2: "border-primary/55",
-  3: "border-primary/32",
-};
 
 function SponsorRow({
   rank,

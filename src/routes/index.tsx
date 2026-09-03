@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Crown, Medal, Trophy } from "lucide-react";
+import { ChevronDown, Trophy } from "lucide-react";
 import { SnakeGame } from "@/components/game/SnakeGame";
 import { NokiaFrame } from "@/components/NokiaFrame";
 import { LcdScreen } from "@/components/LcdScreen";
+import { LeaderboardDrawer } from "@/components/LeaderboardDrawer";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
@@ -18,13 +19,16 @@ import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
 import { countryName, listCountries } from "@/lib/countries";
+import { AdvertiserRow } from "@/lib/sponsorDisplay";
 import { cn } from "@/lib/utils";
 import {
   completeChallenge,
   createChallenge,
   getEntry,
   getHomeData,
+  getSponsorStandings,
   getWeeklyLeaderboard,
+  recordSponsorClick,
   saveIdentity,
   startAttempt,
   submitScore,
@@ -63,6 +67,7 @@ function Landing() {
   const [code, setCode] = useState<string | null>(null);
   const [saveName, setSaveName] = useState("");
   const [saveCountry, setSaveCountry] = useState("");
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const countries = useMemo(() => listCountries(), []);
 
   const fnEntry = useServerFn(getEntry);
@@ -71,8 +76,18 @@ function Landing() {
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
   const fnComplete = useServerFn(completeChallenge);
+  const fnSponsorClick = useServerFn(recordSponsorClick);
 
   const { data } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
+  // Same query key as SponsorLadder's default "All-time" tab — React Query
+  // dedupes this, so the homepage's Top Advertisers column rides along for free.
+  const { data: sponsors } = useQuery({
+    queryKey: ["sponsor-standings", "all_time"],
+    queryFn: () => getSponsorStandings({ data: { ladder: "all_time" } }) as Promise<
+      { id: string; link_url: string; amount: number }[]
+    >,
+    staleTime: 10000,
+  });
   const { data: weekly } = useQuery({
     queryKey: ["weekly-leaderboard"],
     queryFn: () => getWeeklyLeaderboard(),
@@ -451,11 +466,9 @@ function Landing() {
     );
   })();
 
-  const rankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="h-4 w-4 text-[oklch(0.83_0.15_85)]" aria-hidden />;
-    if (rank === 2) return <Medal className="h-4 w-4 text-zinc-300" aria-hidden />;
-    if (rank === 3) return <Medal className="h-4 w-4 text-[oklch(0.7_0.12_55)]" aria-hidden />;
-    return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
+  const onAdvertiserClick = (bidId: string) => {
+    void fnSponsorClick({ data: { bidId } });
+    track("sponsor_listing_clicked", { bidId, source: "top_advertisers_column" });
   };
 
   return (
@@ -478,49 +491,28 @@ function Landing() {
             <section className="neon-border w-full rounded p-4">
               <div className="flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-primary" aria-hidden />
-                <h2 className="pixel text-[11px] text-primary sm:text-sm">HIGH SCORES</h2>
+                <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP ADVERTISERS</h2>
               </div>
+              <p className="mt-2 text-[10px] tracking-widest text-muted-foreground uppercase">
+                Who's paying to be seen
+              </p>
 
-              <p className="mt-3 text-[10px] tracking-widest text-muted-foreground uppercase">This week's top 3</p>
-              <ol className="mt-2 divide-y divide-border border-y border-border">
-                {(weekly?.rows ?? []).slice(0, 3).map((row: any) => (
-                  <li key={row.profileId as string} className="flex items-center gap-3 py-3 text-sm">
-                    <span className="flex w-6 justify-center">{rankIcon(row.rank as number)}</span>
-                    <span className="flex-1 truncate font-bold uppercase tracking-wide">{row.nickname as string}</span>
-                    <span className="w-20 text-right font-mono font-bold tabular-nums">
-                      {(row.score as number).toLocaleString()}
-                    </span>
-                  </li>
+              <ol className="mt-3 space-y-1.5">
+                {(sponsors ?? []).slice(0, 20).map((s, i) => (
+                  <AdvertiserRow
+                    key={s.id}
+                    rank={i + 1}
+                    linkUrl={s.link_url}
+                    amount={s.amount}
+                    onOpen={() => onAdvertiserClick(s.id)}
+                  />
                 ))}
-                {!weekly?.rows?.length && (
+                {!sponsors?.length && (
                   <li className="py-6 text-center text-sm text-muted-foreground">
-                    No scores yet this week. The first name on this board could be yours.
+                    No advertisers yet — be the first. Claim #1 on the left.
                   </li>
                 )}
               </ol>
-
-              <p className="mt-6 text-[10px] tracking-widest text-muted-foreground uppercase">Top 20 — who's still got it?</p>
-              <ol className="mt-2 divide-y divide-border border-y border-border">
-                {(data?.leaderboard ?? []).slice(0, 20).map((row: any, i: number) => (
-                  <li key={row.id as string} className="flex items-center gap-3 py-3 text-sm">
-                    <span className="flex w-6 justify-center">{rankIcon(i + 1)}</span>
-                    <Link to="/p/$id" params={{ id: row.id as string }} className="flex-1 truncate hover:text-primary font-bold uppercase tracking-wide">
-                      {row.nickname as string}
-                    </Link>
-                    <span className="w-20 text-right font-mono font-bold tabular-nums">
-                      {(row.best_score as number).toLocaleString()}
-                    </span>
-                  </li>
-                ))}
-                {!data?.leaderboard.length && (
-                  <li className="py-6 text-center text-sm text-muted-foreground">
-                    No scores yet. The first name on this board could be yours.
-                  </li>
-                )}
-              </ol>
-              <Link to="/leaderboard" className="mt-6 block text-center text-sm font-bold tracking-wide text-primary uppercase">
-                VIEW FULL LEADERBOARD →
-              </Link>
             </section>
 
             <a
@@ -540,6 +532,13 @@ function Landing() {
           </div>
         </div>
       </main>
+
+      <LeaderboardDrawer
+        open={leaderboardOpen}
+        onOpenChange={setLeaderboardOpen}
+        weeklyRows={weekly?.rows ?? []}
+        topRows={data?.leaderboard ?? []}
+      />
 
       <Footer />
     </div>
