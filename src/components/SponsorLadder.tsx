@@ -7,6 +7,7 @@ import {
   Briefcase,
   Building2,
   CheckSquare,
+  ChevronDown,
   Coins,
   Compass,
   Code2,
@@ -247,7 +248,7 @@ function SponsorRow({
 export function SponsorLadder() {
   const [ladder, setLadder] = useState<Ladder>("all_time");
   const [linkUrl, setLinkUrl] = useState("");
-  const [category, setCategory] = useState<string>(SPONSOR_CATEGORIES[0]);
+  const [category, setCategory] = useState<string>("");
   const [tagline, setTagline] = useState("");
   const [amount, setAmount] = useState(SPONSOR_MIN_INCREMENT);
   const [amountTouched, setAmountTouched] = useState(false);
@@ -320,6 +321,10 @@ export function SponsorLadder() {
     }
     if (tagline.trim().length < 4) {
       toast.error("Add a short tagline");
+      return;
+    }
+    if (!category) {
+      toast.error("Choose a category");
       return;
     }
     setBusy(true);
@@ -477,17 +482,29 @@ export function SponsorLadder() {
               </p>
             )}
           </div>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="min-w-0 flex-[2] rounded-full border border-input bg-secondary px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-          >
-            {SPONSOR_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+          <div className="relative min-w-0 flex-[2]">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={cn(
+                "w-full appearance-none rounded-full border border-input bg-secondary py-2 pr-8 pl-3.5 text-sm outline-none focus:border-primary",
+                category ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <option value="" disabled>
+                Choose a Category
               </option>
-            ))}
-          </select>
+              {SPONSOR_CATEGORIES.map((c) => (
+                <option key={c} value={c} className="text-foreground">
+                  {c}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+          </div>
         </div>
 
         <input
