@@ -141,10 +141,23 @@ function activityLine(row: ActivityRow): string {
 
 function rankBadge(rank: number) {
   if (rank === 1) return <Crown className="h-4 w-4 text-[oklch(0.83_0.15_85)]" aria-hidden />;
-  if (rank === 2) return <Medal className="h-4 w-4 text-zinc-300" aria-hidden />;
+  if (rank === 2) return <Medal className="h-4 w-4 text-[oklch(0.8_0.015_260)]" aria-hidden />;
   if (rank === 3) return <Medal className="h-4 w-4 text-[oklch(0.7_0.12_55)]" aria-hidden />;
   return <span className="font-mono text-xs font-bold text-muted-foreground">#{rank}</span>;
 }
+
+// Gold / silver / bronze — full literal class strings (not templated) so
+// Tailwind's static scanner can pick them up.
+const TIER_ROW_CLASS: Record<number, string> = {
+  1: "border border-[oklch(0.83_0.15_85)]/70 bg-[oklch(0.83_0.15_85)]/10 shadow-[0_0_20px_-8px_oklch(0.83_0.15_85_/_0.55)] hover:bg-[oklch(0.83_0.15_85)]/15",
+  2: "border border-[oklch(0.8_0.015_260)]/80 bg-[oklch(0.8_0.015_260)]/14 shadow-[0_0_20px_-8px_oklch(0.8_0.015_260_/_0.5)] hover:bg-[oklch(0.8_0.015_260)]/20",
+  3: "border border-[oklch(0.7_0.12_55)]/70 bg-[oklch(0.7_0.12_55)]/10 shadow-[0_0_20px_-8px_oklch(0.7_0.12_55_/_0.45)] hover:bg-[oklch(0.7_0.12_55)]/15",
+};
+const TIER_AVATAR_BORDER: Record<number, string> = {
+  1: "border-[oklch(0.83_0.15_85)]/60",
+  2: "border-[oklch(0.8_0.015_260)]/70",
+  3: "border-[oklch(0.7_0.12_55)]/60",
+};
 
 function SponsorRow({
   rank,
@@ -178,11 +191,7 @@ function SponsorRow({
         onClick={() => onOpen(s)}
         className={cn(
           "flex gap-3 rounded p-3 text-sm transition-colors",
-          rank === 1
-            ? "neon-border-gold bg-[oklch(0.83_0.15_85)]/10 hover:bg-[oklch(0.83_0.15_85)]/15"
-            : rank === 2 || rank === 3
-              ? "border border-primary/40 bg-primary/10 hover:border-primary"
-              : "border border-border/60 hover:border-primary",
+          TIER_ROW_CLASS[rank] ?? "border border-border/60 hover:border-primary",
         )}
       >
         <span className="flex w-6 shrink-0 justify-center pt-1">{rankBadge(rank)}</span>
@@ -190,17 +199,15 @@ function SponsorRow({
           <img
             src={favicon}
             alt=""
-            className={cn(
-              "h-9 w-9 shrink-0 rounded-lg border object-cover",
-              rank === 1 ? "border-[oklch(0.83_0.15_85)]/50" : "border-border",
-            )}
+            className={cn("h-9 w-9 shrink-0 rounded-lg border object-cover", TIER_AVATAR_BORDER[rank] ?? "border-border")}
             onError={() => setFaviconFailed(true)}
           />
         ) : (
           <span
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-sm font-bold text-primary",
-              rank === 1 ? "border-[oklch(0.83_0.15_85)]/50 bg-secondary" : "border-border bg-secondary",
+              TIER_AVATAR_BORDER[rank] ?? "border-border",
+              "bg-secondary",
             )}
           >
             {domain.charAt(0).toUpperCase()}
@@ -409,7 +416,8 @@ export function SponsorLadder() {
                 onFocus={() => setAmountTouched(true)}
                 onBlur={() => setAmount((a) => Math.max(a, floorAmount))}
                 aria-label="Your bid amount"
-                className="w-24 bg-transparent tabular-nums outline-none"
+                style={{ width: `${Math.max(String(amountTouched ? amount || "" : floorAmount).length, 2) + 1}ch` }}
+                className="bg-transparent tabular-nums outline-none"
               />
             </span>
             <button
