@@ -13,7 +13,7 @@ import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND } from "@/lib/config";
+import { BRAND, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
@@ -28,7 +28,6 @@ import {
   getHomeData,
   getSponsorStandings,
   getWeeklyLeaderboard,
-  recordSponsorClick,
   saveIdentity,
   startAttempt,
   submitScore,
@@ -76,7 +75,6 @@ function Landing() {
   const fnSubmit = useServerFn(submitScore);
   const fnChallenge = useServerFn(createChallenge);
   const fnComplete = useServerFn(completeChallenge);
-  const fnSponsorClick = useServerFn(recordSponsorClick);
 
   const { data } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
   // Same query key as SponsorLadder's default "All-time" tab — React Query
@@ -466,9 +464,11 @@ function Landing() {
     );
   })();
 
-  const onAdvertiserClick = (bidId: string) => {
-    void fnSponsorClick({ data: { bidId } });
-    track("sponsor_listing_clicked", { bidId, source: "top_advertisers_column" });
+  const onRankerClick = (amount: number) => {
+    const nextBid = amount + SPONSOR_MIN_INCREMENT;
+    toast(`Claim this rank for $${nextBid.toLocaleString()} →`);
+    track("sponsor_rank_prompt_clicked", { amount: nextBid });
+    document.getElementById("sponsor")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -477,7 +477,7 @@ function Landing() {
 
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
-        <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_300px]">
+        <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_380px]">
           <div className="order-2 lg:order-1">
             <SponsorLadder />
           </div>
@@ -491,11 +491,8 @@ function Landing() {
             <section className="neon-border w-full rounded p-4">
               <div className="flex items-center gap-2">
                 <Trophy className="h-4 w-4 text-primary" aria-hidden />
-                <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP ADVERTISERS</h2>
+                <h2 className="pixel text-[11px] text-primary sm:text-sm">TOP RANKERS</h2>
               </div>
-              <p className="mt-2 text-[10px] tracking-widest text-muted-foreground uppercase">
-                Who's paying to be seen
-              </p>
 
               <ol className="mt-3 space-y-1.5">
                 {(sponsors ?? []).slice(0, 20).map((s, i) => (
@@ -504,12 +501,12 @@ function Landing() {
                     rank={i + 1}
                     linkUrl={s.link_url}
                     amount={s.amount}
-                    onOpen={() => onAdvertiserClick(s.id)}
+                    onOpen={() => onRankerClick(s.amount)}
                   />
                 ))}
                 {!sponsors?.length && (
                   <li className="py-6 text-center text-sm text-muted-foreground">
-                    No advertisers yet — be the first. Claim #1 on the left.
+                    No rankers yet — be the first. Claim #1 on the left.
                   </li>
                 )}
               </ol>

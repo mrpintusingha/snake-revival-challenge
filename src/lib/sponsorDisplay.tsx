@@ -71,13 +71,11 @@ export function AdvertiserRow({
 
   return (
     <li>
-      <a
-        href={linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`}
-        target="_blank"
-        rel="noopener sponsored"
+      <button
+        type="button"
         onClick={onOpen}
         className={cn(
-          "flex items-center gap-2.5 rounded p-2 text-sm transition-colors",
+          "flex w-full items-center gap-2.5 rounded p-2 text-sm transition-colors",
           TIER_ROW_CLASS[rank] ?? "border border-border/50 hover:border-primary",
         )}
       >
@@ -99,9 +97,9 @@ export function AdvertiserRow({
             {domain.charAt(0).toUpperCase()}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-bold">{domain}</span>
+        <span className="min-w-0 flex-1 truncate text-left font-bold">{domain}</span>
         <span className="shrink-0 font-mono text-xs font-bold text-primary">${amount.toLocaleString()}</span>
-      </a>
+      </button>
     </li>
   );
 }
