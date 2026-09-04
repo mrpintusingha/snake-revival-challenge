@@ -33,8 +33,8 @@ export function StatusBar({
   topScoreToday?: number | undefined;
 }) {
   return (
-    <div className="mx-auto mb-4 max-w-full overflow-x-auto">
-      <div className="neon-border flex w-fit items-center gap-1 rounded px-2.5 py-1.5 text-muted-foreground">
+    <div className="mb-4 flex max-w-full justify-center overflow-x-auto">
+      <div className="neon-border flex w-fit shrink-0 items-center gap-1 rounded px-2.5 py-1.5 text-muted-foreground">
         <Stat label="Playing" value={(playersOnline ?? 0).toLocaleString()} />
         <span aria-hidden>·</span>
         <Stat label="Played today" value={(gamesToday ?? 0).toLocaleString()} />
