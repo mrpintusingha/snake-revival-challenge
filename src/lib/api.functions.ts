@@ -1395,21 +1395,27 @@ export const getSponsorClaimStatus = createServerFn({ method: "POST" })
             // See the webhook handler for why settlement_amount/currency
             // (normalized to the merchant's USD payout), not total_amount/
             // currency (whatever currency the buyer's checkout localized
-            // to), is the only safe field to verify a USD claim against.
+            // to), is the only safe field to verify a USD claim against —
+            // and why settlement_tax is subtracted before comparing (tax
+            // is a pass-through cost, not value bid for the rank).
             settlement_amount?: number;
+            settlement_tax?: number;
             settlement_currency?: string;
           };
           const s = (json.status ?? "").toLowerCase();
           if (s === "succeeded" || s === "paid") {
             // Same amount check as the webhook: never activate at more than
-            // what Dodo actually reports collected, in USD.
+            // what Dodo actually reports collected, in USD, pre-tax.
             let activatedAmount = bid.amount;
             const claimedCents = Math.round(bid.amount * 100);
-            if (json.settlement_currency === "USD" && typeof json.settlement_amount === "number" && json.settlement_amount !== claimedCents) {
-              activatedAmount = Math.max(0, json.settlement_amount) / 100;
-              console.error(
-                `[getSponsorClaimStatus] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement reports $${activatedAmount}. Activating at the settled amount.`,
-              );
+            if (json.settlement_currency === "USD" && typeof json.settlement_amount === "number") {
+              const preTaxCents = json.settlement_amount - (json.settlement_tax ?? 0);
+              if (preTaxCents !== claimedCents) {
+                activatedAmount = Math.max(0, preTaxCents) / 100;
+                console.error(
+                  `[getSponsorClaimStatus] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement (pre-tax) reports $${activatedAmount}. Activating at the settled amount.`,
+                );
+              }
             }
 
             // .eq("payment_status", "pending") makes this a no-op if the

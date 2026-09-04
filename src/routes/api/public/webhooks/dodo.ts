@@ -60,10 +60,13 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
             // localize this, e.g. INR) — never safe to read as USD cents.
             // settlement_amount/settlement_currency are Dodo's own
             // normalization to what the merchant actually receives, and
-            // are what verification below relies on.
+            // are what verification below relies on — minus
+            // settlement_tax, since tax is a pass-through on top of the
+            // bid, not part of what was bid for the rank.
             total_amount?: number;
             currency?: string;
             settlement_amount?: number;
+            settlement_tax?: number;
             settlement_currency?: string;
           };
         };
@@ -99,17 +102,24 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
           // the buyer's checkout was actually charged in (adaptive pricing
           // can localize this — comparing that raw figure to a USD claim
           // is exactly what caused a $2 claim to read as "$231.81" from a
-          // ₹231.81 charge). If USD settlement disagrees with the claim,
-          // activate at what was genuinely received, never higher.
+          // ₹231.81 charge). Tax is subtracted out too: it's a
+          // pass-through cost, not value bid for the rank — a $2 claim
+          // that settles as $2.36 with $0.36 tax should activate at $2,
+          // not $2.36. If USD pre-tax settlement disagrees with the
+          // claim, activate at what was genuinely bid, never higher.
           let activatedAmount = bid.amount;
           const claimedCents = Math.round(bid.amount * 100);
           const settlementCents = event.data?.settlement_amount;
+          const settlementTaxCents = event.data?.settlement_tax ?? 0;
           const settlementCurrency = event.data?.settlement_currency;
-          if (settlementCurrency === "USD" && typeof settlementCents === "number" && settlementCents !== claimedCents) {
-            activatedAmount = Math.max(0, settlementCents) / 100;
-            console.error(
-              `[dodo webhook] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement reports $${activatedAmount}. Activating at the settled amount.`,
-            );
+          if (settlementCurrency === "USD" && typeof settlementCents === "number") {
+            const preTaxCents = settlementCents - settlementTaxCents;
+            if (preTaxCents !== claimedCents) {
+              activatedAmount = Math.max(0, preTaxCents) / 100;
+              console.error(
+                `[dodo webhook] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement (pre-tax) reports $${activatedAmount}. Activating at the settled amount.`,
+              );
+            }
           }
 
           // .eq("payment_status", "pending") makes this a no-op if a
