@@ -1084,6 +1084,11 @@ async function fetchSponsorTopAmount(ladder: SponsorLadder): Promise<number> {
   return promise;
 }
 
+/** The single highest active all-time bid — powers the header's "Top bid $X" stat. */
+export const getSponsorTopBid = createServerFn({ method: "GET" }).handler(async () => {
+  return { amount: await fetchSponsorTopAmount("all_time") };
+});
+
 export const getSponsorStandings = createServerFn({ method: "GET" })
   .inputValidator((i: { ladder?: SponsorLadder | undefined; page?: number | undefined } | undefined) =>
     z

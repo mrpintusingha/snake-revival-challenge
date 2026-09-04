@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Trophy, Users } from "lucide-react";
 import { BRAND } from "@/lib/config";
 import { getPlayerSecret } from "@/lib/player";
-import { getVisitorStats, recordVisit } from "@/lib/api.functions";
+import { getSponsorTopBid, getVisitorStats, recordVisit } from "@/lib/api.functions";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 
 const VISIT_RECORDED_KEY = "snake90_visit_recorded";
@@ -16,6 +17,11 @@ export function Header() {
     queryKey: ["visitor-stats"],
     queryFn: () => getVisitorStats(),
     staleTime: 30000,
+  });
+  const { data: topBid } = useQuery({
+    queryKey: ["sponsor-top-bid"],
+    queryFn: () => getSponsorTopBid(),
+    staleTime: 15000,
   });
 
   // One real visit per tab session — the upsert is idempotent either way,
@@ -38,13 +44,25 @@ export function Header() {
           </span>
         </Link>
 
-        <div className="order-first flex items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1.5 text-[10px] font-bold text-foreground sm:order-none sm:text-xs">
-          <span className="h-2 w-2 rounded-full pulse-dot" aria-hidden />
-          <span>{onlineCount ?? "…"} online</span>
+        <div className="order-first flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-border/60 bg-secondary/40 px-3 py-1.5 text-[10px] font-bold text-foreground sm:order-none sm:text-xs">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full pulse-dot" aria-hidden />
+            {onlineCount ?? "…"} online
+          </span>
           <span className="text-muted-foreground" aria-hidden>
             ·
           </span>
-          <span>{(data?.totalVisitors ?? 0).toLocaleString()} visitors</span>
+          <span className="flex items-center gap-1">
+            <Users className="h-3 w-3 text-muted-foreground" aria-hidden />
+            {(data?.totalVisitors ?? 0).toLocaleString()} visitors
+          </span>
+          <span className="text-muted-foreground" aria-hidden>
+            ·
+          </span>
+          <span className="flex items-center gap-1">
+            <Trophy className="h-3 w-3 text-primary" aria-hidden />
+            Top bid ${(topBid?.amount ?? 0).toLocaleString()}
+          </span>
         </div>
 
         <nav className="flex items-center gap-4 text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:text-xs">
