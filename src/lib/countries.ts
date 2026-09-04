@@ -49,3 +49,20 @@ export function countryName(code: string | null | undefined): string | null {
     return code;
   }
 }
+
+/** Regional-indicator flag emoji for a 2-letter ISO code (e.g. "IN" -> 🇮🇳). */
+function flagFromCode(code: string): string {
+  return [...code.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join("");
+}
+
+/**
+ * Flag emoji for a country as it's actually stored — a display name like
+ * "India", not a code — resolved by reverse-matching against the same
+ * code/name list the country picker uses. Returns null (never a wrong or
+ * placeholder flag) if the name doesn't match anything real.
+ */
+export function flagForCountryName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const match = listCountries().find((c) => c.name === name);
+  return match ? flagFromCode(match.code) : null;
+}

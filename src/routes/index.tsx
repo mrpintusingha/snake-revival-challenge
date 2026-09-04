@@ -20,7 +20,7 @@ import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
-import { countryName, listCountries } from "@/lib/countries";
+import { countryName, flagForCountryName, listCountries } from "@/lib/countries";
 import { AdvertiserRow } from "@/lib/sponsorDisplay";
 import { cn } from "@/lib/utils";
 import {
@@ -389,11 +389,16 @@ function Landing() {
                 <h3 className="mt-2 text-sm text-muted-foreground">You beat {result.percentile}% of players.</h3>
                 <div className="mt-5 flex justify-center gap-5 text-sm text-zinc-400">
                   <span>🌍 Global: #{result.rankGlobal}</span>
-                  {result.rankCountry && (
-                    <span>
-                      🏳️‍🌈 {result.country}: #{result.rankCountry}
-                    </span>
-                  )}
+                  {result.rankCountry &&
+                    (() => {
+                      const flag = flagForCountryName(result.country);
+                      return (
+                        <span>
+                          {flag ? `${flag} ` : ""}
+                          {result.country}: #{result.rankCountry}
+                        </span>
+                      );
+                    })()}
                 </div>
                 <p className="pixel mt-6 text-[12px] text-primary">{result.tier.toUpperCase()}</p>
                 {result.status !== "verified" && (
