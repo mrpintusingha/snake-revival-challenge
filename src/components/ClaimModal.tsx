@@ -67,8 +67,8 @@ export function ClaimModal({
         className="neon-border w-full max-w-sm rounded bg-background p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
+        <div className="relative">
+          <div className="px-6 text-center">
             <h2 className="pixel text-[11px] text-primary sm:text-xs">CLAIM RANK #{target.rank}</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Currently held by <span className="text-foreground">{holderDomain}</span> at $
@@ -79,7 +79,7 @@ export function ClaimModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 rounded-full border border-border p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="absolute top-0 right-0 shrink-0 rounded-full border border-border p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
