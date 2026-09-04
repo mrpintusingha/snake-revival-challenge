@@ -82,13 +82,14 @@ function Landing() {
   const { data } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
   // Same query key as SponsorLadder's default "All-time" tab — React Query
   // dedupes this, so the homepage's Top Advertisers column rides along for free.
-  const { data: sponsors } = useQuery({
-    queryKey: ["sponsor-standings", "all_time"],
-    queryFn: () => getSponsorStandings({ data: { ladder: "all_time" } }) as Promise<
-      { id: string; link_url: string; amount: number }[]
-    >,
+  const { data: sponsorsPage } = useQuery({
+    queryKey: ["sponsor-standings", "all_time", 1],
+    queryFn: () => getSponsorStandings({ data: { ladder: "all_time", page: 1 } }) as Promise<{
+      rows: { id: string; link_url: string; amount: number }[];
+    }>,
     staleTime: 10000,
   });
+  const sponsors = sponsorsPage?.rows;
   const { data: weekly } = useQuery({
     queryKey: ["weekly-leaderboard"],
     queryFn: () => getWeeklyLeaderboard(),

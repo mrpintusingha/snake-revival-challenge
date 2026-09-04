@@ -1037,49 +1037,108 @@ export const fetchLinkPreview = createServerFn({ method: "POST" })
   });
 
 // Two independent ladders (all-time never resets, daily wipes at UTC
-// midnight) — cached separately so switching tabs never serves stale data
-// from the other one.
-const sponsorStandingsCache = new Map<SponsorLadder, { data: any; expiresAt: number }>();
-const sponsorStandingsPromise = new Map<SponsorLadder, Promise<any>>();
+// midnight) — cached separately, and further keyed by page so switching
+// tabs or pages never serves stale data from another combination. The
+// underlying views are backed by a partial index on (amount DESC), so
+// range-based pagination stays cheap however many sponsors join — this
+// isn't a "top 50" list capped for convenience, it's meant to scale to
+// thousands of active listings.
+const SPONSOR_PAGE_SIZE = 20;
+const sponsorStandingsCache = new Map<string, { rows: any[]; totalCount: number; expiresAt: number }>();
+const sponsorStandingsPromise = new Map<string, Promise<{ rows: any[]; totalCount: number }>>();
+
+// The floor for "claim #1" only ever depends on the single highest active
+// amount, never on which page is currently being browsed — cached
+// separately (keyed only by ladder, not page) so it's cheap to include on
+// every page's response without re-querying it per page.
+const sponsorTopAmountCache = new Map<SponsorLadder, { amount: number; expiresAt: number }>();
+const sponsorTopAmountPromise = new Map<SponsorLadder, Promise<number>>();
+
+async function fetchSponsorTopAmount(ladder: SponsorLadder): Promise<number> {
+  const TTL = 15 * 1000;
+  const now = Date.now();
+  const cached = sponsorTopAmountCache.get(ladder);
+  if (cached && now < cached.expiresAt) return cached.amount;
+  const inflight = sponsorTopAmountPromise.get(ladder);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    try {
+      const db = await publicDb();
+      const { data } = await db
+        .from(ladder === "daily" ? "sponsor_standings_daily" : "sponsor_standings")
+        .select("amount")
+        .order("amount", { ascending: false })
+        .limit(1);
+      const amount = data?.[0]?.amount ?? 0;
+      sponsorTopAmountCache.set(ladder, { amount, expiresAt: Date.now() + TTL });
+      return amount;
+    } catch (e) {
+      console.error("[getSponsorStandings] Failed to fetch top amount", e);
+      return sponsorTopAmountCache.get(ladder)?.amount ?? 0;
+    } finally {
+      sponsorTopAmountPromise.delete(ladder);
+    }
+  })();
+  sponsorTopAmountPromise.set(ladder, promise);
+  return promise;
+}
 
 export const getSponsorStandings = createServerFn({ method: "GET" })
-  .inputValidator((i: { ladder?: SponsorLadder | undefined } | undefined) =>
-    z.object({ ladder: sponsorLadderSchema.default("all_time") }).parse(i ?? {}),
+  .inputValidator((i: { ladder?: SponsorLadder | undefined; page?: number | undefined } | undefined) =>
+    z
+      .object({
+        ladder: sponsorLadderSchema.default("all_time"),
+        page: z.number().int().min(1).max(1000).default(1),
+      })
+      .parse(i ?? {}),
   )
   .handler(async ({ data: input }) => {
-    const ladder = input.ladder;
+    const { ladder, page } = input;
     const TTL = 15 * 1000;
     const now = Date.now();
+    const cacheKey = `${ladder}:${page}`;
 
-    const cached = sponsorStandingsCache.get(ladder);
-    if (cached && now < cached.expiresAt) return cached.data;
+    const topAmount = await fetchSponsorTopAmount(ladder);
 
-    const inflight = sponsorStandingsPromise.get(ladder);
-    if (inflight) return inflight;
+    const cached = sponsorStandingsCache.get(cacheKey);
+    if (cached && now < cached.expiresAt) {
+      return { rows: cached.rows, totalCount: cached.totalCount, page, pageSize: SPONSOR_PAGE_SIZE, topAmount };
+    }
+
+    const inflight = sponsorStandingsPromise.get(cacheKey);
+    if (inflight) {
+      const res = await inflight;
+      return { rows: res.rows, totalCount: res.totalCount, page, pageSize: SPONSOR_PAGE_SIZE, topAmount };
+    }
 
     const promise = (async () => {
       try {
         const db = await publicDb();
-        const { data } = await db
+        const from = (page - 1) * SPONSOR_PAGE_SIZE;
+        const to = from + SPONSOR_PAGE_SIZE - 1;
+        const { data, count } = await db
           .from(ladder === "daily" ? "sponsor_standings_daily" : "sponsor_standings")
-          .select("id, link_url, category, tagline, amount, click_count, created_at")
+          .select("id, link_url, category, tagline, amount, click_count, created_at", { count: "exact" })
           .order("amount", { ascending: false })
-          .limit(50);
+          .range(from, to);
         const rows = data ?? [];
-        sponsorStandingsCache.set(ladder, { data: rows, expiresAt: Date.now() + TTL });
-        return rows;
+        const totalCount = count ?? 0;
+        sponsorStandingsCache.set(cacheKey, { rows, totalCount, expiresAt: Date.now() + TTL });
+        return { rows, totalCount };
       } catch (e) {
         console.error("[getSponsorStandings] Failed to fetch sponsor standings", e);
-        const stale = sponsorStandingsCache.get(ladder);
-        if (stale) return stale.data;
-        return [];
+        const stale = sponsorStandingsCache.get(cacheKey);
+        if (stale) return { rows: stale.rows, totalCount: stale.totalCount };
+        return { rows: [], totalCount: 0 };
       } finally {
-        sponsorStandingsPromise.delete(ladder);
+        sponsorStandingsPromise.delete(cacheKey);
       }
     })();
 
-    sponsorStandingsPromise.set(ladder, promise);
-    return promise;
+    sponsorStandingsPromise.set(cacheKey, promise);
+    const res = await promise;
+    return { rows: res.rows, totalCount: res.totalCount, page, pageSize: SPONSOR_PAGE_SIZE, topAmount };
   });
 
 export const recordSponsorClick = createServerFn({ method: "POST" })

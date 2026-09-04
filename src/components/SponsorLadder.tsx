@@ -198,8 +198,17 @@ function SponsorRow({
   );
 }
 
+type StandingsPage = {
+  rows: Standing[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  topAmount: number;
+};
+
 export function SponsorLadder() {
   const [ladder, setLadder] = useState<Ladder>("all_time");
+  const [page, setPage] = useState(1);
   const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
 
   const fnClick = useServerFn(recordSponsorClick);
@@ -246,8 +255,8 @@ export function SponsorLadder() {
   }, []);
 
   const { data, refetch } = useQuery({
-    queryKey: ["sponsor-standings", ladder],
-    queryFn: () => getSponsorStandings({ data: { ladder } }) as Promise<Standing[]>,
+    queryKey: ["sponsor-standings", ladder, page],
+    queryFn: () => getSponsorStandings({ data: { ladder, page } }) as Promise<StandingsPage>,
     staleTime: 10000,
     refetchInterval: 20000,
   });
@@ -257,17 +266,27 @@ export function SponsorLadder() {
   const { data: home } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
   const activity = ((home?.activity ?? []) as ActivityRow[]).slice(0, 5);
 
-  const standings = data ?? [];
-  const top3 = standings.slice(0, 3);
-  const rest = standings.slice(3);
-  const topAmount = standings[0]?.amount ?? 0;
+  const standings = data?.rows ?? [];
+  const pageSize = data?.pageSize ?? 20;
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  // The claim floor is always the single highest active amount across the
+  // whole ladder, never just the current page's own top row — the server
+  // tracks this independently of pagination so it's correct on every page.
+  const topAmount = data?.topAmount ?? 0;
   const floorAmount = topAmount + SPONSOR_MIN_INCREMENT;
+  // Podium styling (gold/silver/bronze) only makes sense for absolute ranks
+  // 1-3, which only ever appear on page 1.
+  const top3 = page === 1 ? standings.slice(0, 3) : [];
+  const rest = page === 1 ? standings.slice(3) : standings;
+  const restRankOffset = page === 1 ? 4 : (page - 1) * pageSize + 1;
 
   const form = useSponsorClaimForm(ladder, floorAmount, () => void refetch());
 
   const switchLadder = (next: Ladder) => {
     if (next === ladder) return;
     setLadder(next);
+    setPage(1);
     form.resetAmount();
   };
 
@@ -429,29 +448,59 @@ export function SponsorLadder() {
         </button>
       </div>
 
-      {/* Top 3 — each row carries its own highlight (gold for #1, tinted green for #2/#3) */}
-      {top3.length > 0 ? (
-        <div className="mt-5 rounded-lg border border-border/30 p-2">
-          <ol className="space-y-2">
-            {top3.map((s, i) => (
-              <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 1)} />
-            ))}
-          </ol>
-        </div>
-      ) : (
+      {/* Top 3 — each row carries its own highlight (gold for #1, tinted green for #2/#3). Only ever present on page 1. */}
+      {standings.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           {ladder === "daily" ? "No one has claimed today yet." : "Be the first sponsor."} Claim #1 for just $
           {SPONSOR_MIN_INCREMENT}.
         </div>
+      ) : (
+        <>
+          {top3.length > 0 && (
+            <div className="mt-5 rounded-lg border border-border/30 p-2">
+              <ol className="space-y-2">
+                {top3.map((s, i) => (
+                  <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 1)} />
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* Remaining ranks on this page — #4+ on page 1, or the full page on any later page. */}
+          {rest.length > 0 && (
+            <ol className={cn("space-y-2", top3.length > 0 ? "mt-3" : "mt-5")}>
+              {rest.map((s, i) => {
+                const rank = restRankOffset + i;
+                return <SponsorRow key={s.id} rank={rank} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, rank)} />;
+              })}
+            </ol>
+          )}
+        </>
       )}
 
-      {/* Ranks #4 and below */}
-      {rest.length > 0 && (
-        <ol className="mt-3 space-y-2">
-          {rest.map((s, i) => (
-            <SponsorRow key={s.id} rank={i + 4} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 4)} />
-          ))}
-        </ol>
+      {/* Pagination — the board scales to thousands of sponsors, 20 per page */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="rounded-full border border-border px-3 py-1.5 text-xs font-bold tracking-wide uppercase hover:bg-accent disabled:opacity-40"
+          >
+            ← Prev
+          </button>
+          <span className="text-[11px] text-muted-foreground">
+            Page {page} of {totalPages.toLocaleString()} · {totalCount.toLocaleString()} sponsors
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className="rounded-full border border-border px-3 py-1.5 text-xs font-bold tracking-wide uppercase hover:bg-accent disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </div>
       )}
 
       {/* Live activity — real activity_events, not fabricated sponsor history */}
