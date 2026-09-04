@@ -7,7 +7,7 @@ import { ChevronDown, Trophy } from "lucide-react";
 import { SnakeGame } from "@/components/game/SnakeGame";
 import { NokiaFrame } from "@/components/NokiaFrame";
 import { LcdScreen } from "@/components/LcdScreen";
-import { LeaderboardDrawer } from "@/components/LeaderboardDrawer";
+import { LeaderboardDrawer, LeaderboardTabButton } from "@/components/LeaderboardDrawer";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
@@ -504,7 +504,10 @@ function Landing() {
               A new 90s classic every week · This week:{" "}
               <span className="font-bold text-primary">Nokia Snake</span>
             </p>
-            {gameColumn}
+            <div className="relative mx-auto w-full max-w-[300px]">
+              {gameColumn}
+              <LeaderboardTabButton onOpen={() => setLeaderboardOpen(true)} hidden={leaderboardOpen} />
+            </div>
           </div>
 
           <div className="order-3 mt-2 lg:order-3 lg:mt-0">

@@ -11,10 +11,35 @@ function rankIcon(rank: number) {
 }
 
 /**
- * Player leaderboard, tucked behind an edge tab instead of sitting in the
- * homepage's third column — that column now goes to top advertisers, the
- * site's actual paying priority. This keeps the leaderboard one click away
- * without competing for the same prime real estate.
+ * Trigger tab for the leaderboard drawer — meant to be rendered inside a
+ * `position: relative` wrapper sized to the phone frame (not placed at the
+ * page level), so it visually hangs off the frame's own right edge instead
+ * of the browser viewport's edge, which drifted far from the frame on any
+ * wide desktop window.
+ */
+export function LeaderboardTabButton({ onOpen, hidden }: { onOpen: () => void; hidden: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Open high scores"
+      className={cn(
+        "neon-border absolute top-1/2 left-full z-40 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-r-lg rounded-l-none border-l-0 bg-card px-2 py-4 transition-opacity",
+        hidden && "pointer-events-none opacity-0",
+      )}
+    >
+      <Trophy className="h-4 w-4 text-primary" aria-hidden />
+      <span className="pixel text-[9px] tracking-widest text-primary" style={{ writingMode: "vertical-rl" }}>
+        HIGH SCORES
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Player leaderboard panel — slides in from the viewport's right edge
+ * exactly as before; only its trigger tab (LeaderboardTabButton) moved to
+ * attach to the phone frame instead of living here.
  */
 export function LeaderboardDrawer({
   open,
@@ -38,24 +63,6 @@ export function LeaderboardDrawer({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => onOpenChange(true)}
-        aria-label="Open high scores"
-        className={cn(
-          "neon-border fixed top-1/2 right-0 z-40 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-l-lg rounded-r-none border-r-0 bg-card px-2 py-4 transition-opacity",
-          open && "pointer-events-none opacity-0",
-        )}
-      >
-        <Trophy className="h-4 w-4 text-primary" aria-hidden />
-        <span
-          className="pixel text-[9px] tracking-widest text-primary"
-          style={{ writingMode: "vertical-rl" }}
-        >
-          HIGH SCORES
-        </span>
-      </button>
-
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/60"
