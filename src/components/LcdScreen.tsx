@@ -61,7 +61,19 @@ export function LcdScreen({ state, overlay = null, className, stretch = false, o
       ctx.fillStyle = fg;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = "bold 13px ui-monospace, monospace";
+
+      // Shrink the font just enough for the widest line to fit — canvas
+      // text has no native wrapping, so a longer line (e.g. control hints)
+      // would otherwise clip at the canvas edge instead of staying legible.
+      let fontSize = 13;
+      ctx.font = `bold ${fontSize}px ui-monospace, monospace`;
+      const maxWidth = W - 16;
+      const widest = Math.max(...overlay.lines.map((line) => ctx.measureText(line).width));
+      if (widest > maxWidth) {
+        fontSize = Math.max(9, Math.floor(fontSize * (maxWidth / widest)));
+        ctx.font = `bold ${fontSize}px ui-monospace, monospace`;
+      }
+
       overlay.lines.forEach((line, i) => {
         ctx.fillText(line, W / 2, centerY + (i - (overlay.lines.length - 1) / 2) * 18);
       });

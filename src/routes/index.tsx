@@ -452,7 +452,7 @@ function Landing() {
         <NokiaFrame onPlay={() => void beginAttempt()}>
           <LcdScreen
             state={idleState}
-            overlay={{ lines: ["READY?", "ARROWS / SWIPE TO MOVE"] }}
+            overlay={{ lines: ["READY?", "ARROW KEYS / D-PAD / SWIPE TO MOVE"] }}
             overlayAlign="top"
             stretch
           />
