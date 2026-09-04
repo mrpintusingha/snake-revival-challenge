@@ -74,7 +74,7 @@ export function Header() {
           </span>
         </div>
 
-        <nav className="flex items-center gap-4 text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:text-xs">
+        <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:text-xs">
           <Link to="/" className="text-primary hover:opacity-80" activeOptions={{ exact: true }}>
             Play
           </Link>
@@ -84,6 +84,15 @@ export function Header() {
           <a href="/#sponsor" className="hover:text-foreground">
             Advertise
           </a>
+          <Link to="/rules" className="hover:text-foreground">
+            Rules
+          </Link>
+          <Link to="/faq" className="hover:text-foreground">
+            FAQ
+          </Link>
+          <Link to="/contact" className="hover:text-foreground">
+            Contact
+          </Link>
         </nav>
       </div>
     </header>
@@ -93,7 +102,7 @@ export function Header() {
 function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">{title}</h3>
+      <h3 className="text-[10px] font-bold tracking-widest text-primary uppercase">{title}</h3>
       <ul className="mt-3 space-y-2 text-xs">{children}</ul>
     </div>
   );
@@ -168,12 +177,13 @@ export function Footer() {
           </FooterColumn>
         </div>
 
-        <div className="mt-8 border-t border-border/60 pt-6 text-xs leading-relaxed text-muted-foreground">
-          <p>{BRAND.disclaimer}</p>
-          <p className="mt-1">{BRAND.legal}</p>
-          <p className="mt-3">
+        <div className="mt-8 border-t border-border/60 pt-6 text-center text-xs leading-relaxed text-muted-foreground">
+          <p>
+            {BRAND.disclaimer} {BRAND.legal}
+          </p>
+          <p className="mt-2">
             Built by {OPERATOR.name} ·{" "}
-            <a href={OPERATOR.twitterUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+            <a href={OPERATOR.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:opacity-80">
               {OPERATOR.twitterHandle}
             </a>
           </p>
