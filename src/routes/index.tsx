@@ -11,6 +11,7 @@ import { LeaderboardDrawer } from "@/components/LeaderboardDrawer";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
+import { LiveActivityFeed } from "@/components/LiveActivityFeed";
 import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
@@ -480,8 +481,9 @@ function Landing() {
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
         <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_380px]">
-          <div className="order-2 lg:order-1">
+          <div className="order-2 space-y-5 lg:order-1">
             <SponsorLadder />
+            <LiveActivityFeed />
           </div>
 
           <div className="order-1 lg:order-2">

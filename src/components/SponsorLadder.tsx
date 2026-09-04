@@ -40,12 +40,8 @@ import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { domainFor, faviconFor, rankBadge, TIER_AVATAR_BORDER, TIER_ROW_CLASS } from "@/lib/sponsorDisplay";
 import { looksLikeSponsorLink } from "@/lib/sponsorLink";
-import {
-  getHomeData,
-  getSponsorClaimStatus,
-  getSponsorStandings,
-  recordSponsorClick,
-} from "@/lib/api.functions";
+import { timeAgo } from "@/lib/time";
+import { getSponsorClaimStatus, getSponsorStandings, recordSponsorClick } from "@/lib/api.functions";
 import { useSponsorClaimForm } from "@/hooks/useSponsorClaimForm";
 import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 
@@ -60,8 +56,6 @@ type Standing = {
   click_count: number;
   created_at: string;
 };
-
-type ActivityRow = { id: string; event_type: string; metadata: Record<string, unknown>; created_at: string };
 
 const CATEGORY_ICON: Record<string, LucideIcon> = {
   "AI Agents & Infrastructure": Bot,
@@ -93,35 +87,6 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
   "Media & News": Newspaper,
   Other: MoreHorizontal,
 };
-
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  return `${Math.floor(days / 7)}w ago`;
-}
-
-/** Human line for a real `activity_events` row — no sponsor bid history exists, so this stays about play, not bidding. */
-function activityLine(row: ActivityRow): string {
-  const name = (row.metadata?.["nickname"] as string) ?? "A player";
-  switch (row.event_type) {
-    case "score": {
-      const score = Number(row.metadata?.["score"] ?? 0);
-      return `${name} scored ${score.toLocaleString()}`;
-    }
-    case "top100":
-      return `${name} broke into the top 100`;
-    case "challenge":
-      return `${name} sent a friend challenge`;
-    default:
-      return `${name} made a move`;
-  }
-}
 
 function SponsorRow({
   rank,
@@ -260,11 +225,6 @@ export function SponsorLadder() {
     staleTime: 10000,
     refetchInterval: 20000,
   });
-
-  // Same query key as the homepage's own getHomeData() call — React Query
-  // dedupes this, so the live-activity feed below rides along for free.
-  const { data: home } = useQuery({ queryKey: ["home"], queryFn: () => getHomeData(), staleTime: 30000 });
-  const activity = ((home?.activity ?? []) as ActivityRow[]).slice(0, 5);
 
   const standings = data?.rows ?? [];
   const pageSize = data?.pageSize ?? 20;
@@ -503,24 +463,6 @@ export function SponsorLadder() {
         </div>
       )}
 
-      {/* Live activity — real activity_events, not fabricated sponsor history */}
-      <div className="mt-5">
-        <div className="flex items-center justify-between">
-          <h3 className="text-[10px] tracking-widest text-muted-foreground uppercase">Live activity</h3>
-          <span className="flex items-center gap-1 text-[9px] tracking-widest text-primary/70 uppercase">
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> Refreshing live
-          </span>
-        </div>
-        <ul className="mt-2 space-y-1.5">
-          {activity.map((row) => (
-            <li key={row.id} className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate text-muted-foreground">{activityLine(row)}</span>
-              <span className="shrink-0 text-[10px] text-muted-foreground/70">{timeAgo(row.created_at)}</span>
-            </li>
-          ))}
-          {!activity.length && <li className="text-xs text-muted-foreground">No activity yet — be the first to play.</li>}
-        </ul>
-      </div>
     </section>
 
     {claimTarget && (

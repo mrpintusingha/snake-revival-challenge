@@ -1151,6 +1151,47 @@ export const recordSponsorClick = createServerFn({ method: "POST" })
   });
 
 /**
+ * Records a real "X claimed #N for $Y" entry in the same activity_events feed
+ * the homepage's Live Activity list already reads from — called exactly once
+ * per bid, right after it's confirmed as the actual transition into
+ * `payment_status = 'succeeded'` (never speculatively, and never on a
+ * redundant re-confirmation). Best-effort: a failure here must never break
+ * the payment-confirmation path it's attached to.
+ */
+export async function recordSponsorClaimActivity(
+  db: Awaited<ReturnType<typeof admin>>,
+  bid: { link_url: string; amount: number; ladder_type: string; slot_date: string | null },
+) {
+  try {
+    let rankQuery = db
+      .from("sponsor_bids")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true)
+      .eq("ladder_type", bid.ladder_type)
+      .gt("amount", bid.amount);
+    if (bid.ladder_type === "daily" && bid.slot_date) {
+      rankQuery = rankQuery.eq("slot_date", bid.slot_date);
+    }
+    const { count } = await rankQuery;
+    const rank = (count ?? 0) + 1;
+
+    let domain = bid.link_url;
+    try {
+      domain = new URL(bid.link_url).hostname.replace(/^www\./, "");
+    } catch {
+      // Keep the raw link_url as a last resort — better than dropping the event.
+    }
+
+    await db.from("activity_events").insert({
+      event_type: "sponsor_claim",
+      metadata: { domain, amount: bid.amount, rank, ladderType: bid.ladder_type },
+    });
+  } catch (e) {
+    console.error("[recordSponsorClaimActivity] Failed to record activity", e);
+  }
+}
+
+/**
  * Claims a rank on the sponsor ladder. The amount is validated and reserved
  * atomically server-side (see the `claim_sponsor_bid` SQL function) — the
  * browser's number is never trusted as final. The claim starts `pending` and
@@ -1208,6 +1249,12 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
         .from("sponsor_bids")
         .update({ payment_status: "succeeded", is_active: true, payment_reference: `test_${bid.id}` })
         .eq("id", bid.id);
+      await recordSponsorClaimActivity(db, {
+        link_url: bid.link_url,
+        amount: bid.amount,
+        ladder_type: bid.ladder_type,
+        slot_date: bid.slot_date,
+      });
       return { mode: "test" as const, bidId: bid.id as string };
     }
 
@@ -1274,7 +1321,7 @@ export const getSponsorClaimStatus = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: bid } = await db
       .from("sponsor_bids")
-      .select("id, payment_status, payment_reference, amount, link_url")
+      .select("id, payment_status, payment_reference, amount, link_url, ladder_type, slot_date")
       .eq("id", data.bidId)
       .maybeSingle();
     if (!bid) return { status: "not_found" as const };
@@ -1293,11 +1340,24 @@ export const getSponsorClaimStatus = createServerFn({ method: "POST" })
           const json = (await res.json()) as { status?: string };
           const s = (json.status ?? "").toLowerCase();
           if (s === "succeeded" || s === "paid") {
-            await db
+            // .eq("payment_status", "pending") makes this a no-op if the
+            // webhook already won the race — .select() tells us whether THIS
+            // call actually performed the transition, so the activity event
+            // fires exactly once regardless of which path confirms first.
+            const { data: updated } = await db
               .from("sponsor_bids")
               .update({ payment_status: "succeeded", is_active: true })
               .eq("id", bid.id)
-              .eq("payment_status", "pending"); // idempotent: never re-activate
+              .eq("payment_status", "pending")
+              .select("id");
+            if (updated && updated.length > 0) {
+              await recordSponsorClaimActivity(db, {
+                link_url: bid.link_url,
+                amount: bid.amount,
+                ladder_type: bid.ladder_type,
+                slot_date: bid.slot_date,
+              });
+            }
             return { status: "succeeded" as const, amount: bid.amount, linkUrl: bid.link_url };
           }
           if (s === "failed" || s === "cancelled") {

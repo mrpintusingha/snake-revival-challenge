@@ -76,21 +76,37 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
 
         const { data: bid } = await supabaseAdmin
           .from("sponsor_bids")
-          .select("id, payment_status")
+          .select("id, payment_status, link_url, amount, ladder_type, slot_date")
           .eq("id", bidId)
           .maybeSingle();
         if (!bid) return new Response("ok (unknown bid)", { status: 200 });
         if (bid.payment_status === "succeeded") return new Response("ok (already processed)", { status: 200 });
 
         if (succeeded) {
-          await supabaseAdmin
+          // .eq("payment_status", "pending") makes this a no-op if a
+          // redelivered/concurrent webhook (or the client's own fallback
+          // poll) already won the race — .select() tells us whether THIS
+          // call actually performed the transition, so the activity feed
+          // never gets a duplicate entry for one payment.
+          const { data: updated } = await supabaseAdmin
             .from("sponsor_bids")
             .update({
               payment_status: "succeeded",
               is_active: true,
               payment_reference: event.data?.payment_id ?? null,
             })
-            .eq("id", bid.id);
+            .eq("id", bid.id)
+            .eq("payment_status", "pending")
+            .select("id");
+          if (updated && updated.length > 0) {
+            const { recordSponsorClaimActivity } = await import("@/lib/api.functions");
+            await recordSponsorClaimActivity(supabaseAdmin, {
+              link_url: bid.link_url,
+              amount: bid.amount,
+              ladder_type: bid.ladder_type,
+              slot_date: bid.slot_date,
+            });
+          }
         } else if (failed) {
           await supabaseAdmin.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id);
         }
