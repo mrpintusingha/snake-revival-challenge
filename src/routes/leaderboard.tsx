@@ -21,7 +21,7 @@ export const Route = createFileRoute("/leaderboard")({
   component: LeaderboardPage,
 });
 
-type Scope = "global" | "country" | "friends";
+type Scope = "global" | "friends";
 
 function LeaderboardPage() {
   const [scope, setScope] = useState<Scope>("global");
@@ -30,8 +30,7 @@ function LeaderboardPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["leaderboard", scope, profileId],
-    queryFn: () =>
-      getLeaderboard({ data: scope === "country" ? { scope, country: "India", profileId } : { scope, profileId } }),
+    queryFn: () => getLeaderboard({ data: { scope, profileId } }),
     staleTime: 15000,
   });
   const { data: weekly } = useQuery({
@@ -79,15 +78,15 @@ function LeaderboardPage() {
 
         <h2 className="pixel pb-4 text-center text-[11px] text-muted-foreground sm:text-sm">ALL-TIME</h2>
 
-        <div className="grid grid-cols-3 border border-border text-xs tracking-widest uppercase">
-          {(["global", "country", "friends"] as Scope[]).map((s) => (
+        <div className="grid grid-cols-2 border border-border text-xs tracking-widest uppercase">
+          {(["global", "friends"] as Scope[]).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setScope(s)}
               className={`py-3 ${scope === s ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
             >
-              {s === "country" ? "India" : s}
+              {s}
             </button>
           ))}
         </div>
