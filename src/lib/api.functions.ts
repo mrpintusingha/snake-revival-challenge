@@ -9,6 +9,7 @@ import {
   tierFor,
 } from "./config";
 import { MAX_FOODS, MIN_MS_PER_FOOD, scoreForFoods } from "./scoring";
+import { normalizeSponsorLink } from "./sponsorLink";
 
 /* ------------------------------------------------------------------ utils */
 
@@ -923,14 +924,14 @@ const sponsorCategorySchema = z.enum(SPONSOR_CATEGORIES);
 const sponsorLadderSchema = z.enum(["all_time", "daily"]);
 type SponsorLadder = z.infer<typeof sponsorLadderSchema>;
 
-// The claim form's placeholder invites a bare domain ("calllive.ai"), and
-// the client-side favicon/domain helpers already tolerate that — the
-// server-side check didn't, rejecting exactly the input the UI encourages.
-// Normalize before validating as a URL, same as the client already does.
+// The claim form's placeholder invites a bare domain ("calllive.ai") or an
+// "@handle" — normalizeSponsorLink resolves both to a real https URL (the
+// same normalization the client uses for its favicon/preview display), so
+// what actually gets stored/linked matches what the sponsor saw in the form
+// instead of a technically-valid-but-meaningless URL like "https://@handle".
 const sponsorLinkUrlSchema = z.preprocess((val) => {
   if (typeof val !== "string") return val;
-  const trimmed = val.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return normalizeSponsorLink(val);
 }, z.string().url().max(300));
 
 // Hostnames a link-preview fetch must never be allowed to reach — loopback,
@@ -974,7 +975,7 @@ function decodeEntities(s: string): string {
 async function fetchPageMeta(rawUrl: string): Promise<{ title: string | null; description: string | null }> {
   let url: URL;
   try {
-    url = new URL(rawUrl.includes("://") ? rawUrl : `https://${rawUrl}`);
+    url = new URL(normalizeSponsorLink(rawUrl));
   } catch {
     return { title: null, description: null };
   }

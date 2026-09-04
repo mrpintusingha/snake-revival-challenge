@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { domainFor, faviconFor, rankBadge, TIER_AVATAR_BORDER, TIER_ROW_CLASS } from "@/lib/sponsorDisplay";
+import { looksLikeSponsorLink } from "@/lib/sponsorLink";
 import {
   getHomeData,
   getSponsorClaimStatus,
@@ -357,9 +358,9 @@ export function SponsorLadder() {
         </div>
 
         <div className="flex gap-2">
-          <div className="min-w-0 flex-[3]">
+          <div className="min-w-0 flex-1">
             <div className="relative">
-              {faviconFor(form.linkUrl) && /\.[a-z]{2,}/i.test(form.linkUrl) ? (
+              {faviconFor(form.linkUrl) && looksLikeSponsorLink(form.linkUrl) ? (
                 <img
                   src={faviconFor(form.linkUrl)!}
                   alt=""
@@ -385,17 +386,17 @@ export function SponsorLadder() {
               </p>
             )}
           </div>
-          <div className="relative min-w-0 flex-[2]">
+          <div className="relative min-w-0 flex-1">
             <select
               value={form.category}
               onChange={(e) => form.setCategory(e.target.value)}
               className={cn(
-                "w-full appearance-none rounded-full border border-input bg-secondary py-2 pr-8 pl-3.5 text-sm outline-none focus:border-primary",
+                "w-full appearance-none truncate rounded-full border border-input bg-secondary py-2 pr-8 pl-3.5 text-sm outline-none focus:border-primary",
                 form.category ? "text-foreground" : "text-muted-foreground",
               )}
             >
               <option value="" disabled>
-                Choose a Category
+                Category
               </option>
               {SPONSOR_CATEGORIES.map((c) => (
                 <option key={c} value={c} className="text-foreground">

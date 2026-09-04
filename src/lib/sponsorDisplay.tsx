@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { normalizeSponsorLink } from "@/lib/sponsorLink";
 import { cn } from "@/lib/utils";
 
 export function domainFor(url: string): string {
   try {
-    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    const host = new URL(normalizeSponsorLink(url)).hostname;
     return host.replace(/^www\./, "");
   } catch {
     return url;
@@ -13,7 +14,7 @@ export function domainFor(url: string): string {
 
 export function faviconFor(url: string): string | null {
   try {
-    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    const host = new URL(normalizeSponsorLink(url)).hostname;
     return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
   } catch {
     return null;

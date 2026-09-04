@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics";
 import { claimSponsorRank, fetchLinkPreview } from "@/lib/api.functions";
+import { looksLikeSponsorLink } from "@/lib/sponsorLink";
 
 type Ladder = "all_time" | "daily";
 
@@ -33,7 +34,7 @@ export function useSponsorClaimForm(ladder: Ladder, floorAmount: number, onTestM
   useEffect(() => {
     if (previewTimer.current) clearTimeout(previewTimer.current);
     const trimmed = linkUrl.trim();
-    if (trimmed.length < 4 || !/\.[a-z]{2,}/i.test(trimmed)) {
+    if (!looksLikeSponsorLink(trimmed)) {
       setPreview(null);
       setPreviewLoading(false);
       return;
