@@ -37,10 +37,19 @@ export function Header() {
   return (
     <header className="border-b border-border/60">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <Link to="/" className="flex flex-col text-left">
-          <span className="pixel text-[13px] text-primary sm:text-base">{BRAND.short}</span>
-          <span className="mt-1 text-[9px] tracking-[0.2em] text-muted-foreground uppercase sm:text-[10px]">
-            {BRAND.tagline1}
+        <Link to="/" className="flex items-center gap-2 text-left">
+          <img
+            src="/favicon.svg"
+            alt=""
+            aria-hidden
+            className="h-7 w-7 shrink-0 sm:h-8 sm:w-8"
+            style={{ imageRendering: "pixelated" }}
+          />
+          <span className="flex flex-col">
+            <span className="pixel text-[13px] text-primary sm:text-base">{BRAND.short}</span>
+            <span className="mt-1 text-[9px] tracking-[0.2em] text-muted-foreground uppercase sm:text-[10px]">
+              {BRAND.tagline1}
+            </span>
           </span>
         </Link>
 
