@@ -1146,6 +1146,45 @@ export const getSponsorStandings = createServerFn({ method: "GET" })
     return { rows: res.rows, totalCount: res.totalCount, page, pageSize: SPONSOR_PAGE_SIZE, topAmount };
   });
 
+let sponsorActivityCache: { data: any[]; expiresAt: number } | null = null;
+let sponsorActivityPromise: Promise<any[]> | null = null;
+
+/**
+ * Real sponsor-claim events only (see recordSponsorClaimActivity) — never
+ * mixed with game activity, so the Live Activity feed shows exactly what
+ * it says: recent bids, not a fallback to something else when there
+ * aren't any yet.
+ */
+export const getSponsorActivity = createServerFn({ method: "GET" }).handler(async () => {
+  const TTL = 20 * 1000;
+  const now = Date.now();
+
+  if (sponsorActivityCache && now < sponsorActivityCache.expiresAt) return { activity: sponsorActivityCache.data };
+  if (sponsorActivityPromise) return { activity: await sponsorActivityPromise };
+
+  sponsorActivityPromise = (async () => {
+    try {
+      const db = await publicDb();
+      const { data } = await db
+        .from("activity_events")
+        .select("id, event_type, metadata, created_at")
+        .eq("event_type", "sponsor_claim")
+        .order("created_at", { ascending: false })
+        .limit(8);
+      const rows = data ?? [];
+      sponsorActivityCache = { data: rows, expiresAt: Date.now() + TTL };
+      return rows;
+    } catch (e) {
+      console.error("[getSponsorActivity] Failed to fetch sponsor activity", e);
+      return sponsorActivityCache?.data ?? [];
+    } finally {
+      sponsorActivityPromise = null;
+    }
+  })();
+
+  return { activity: await sponsorActivityPromise };
+});
+
 export const recordSponsorClick = createServerFn({ method: "POST" })
   .inputValidator((i: { bidId: string }) => z.object({ bidId: z.string().uuid() }).parse(i))
   .handler(async ({ data }) => {
