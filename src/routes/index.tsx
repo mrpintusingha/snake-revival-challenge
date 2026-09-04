@@ -476,10 +476,18 @@ function Landing() {
 
   return (
     <div className="crt-grid min-h-screen">
+      {/* Visible on mobile only — the compact header below already conveys this on
+          larger screens, so it becomes screen-reader-only there instead of duplicating it. */}
+      <div className="px-5 pt-6 pb-2 text-center sm:sr-only">
+        <h1 className="pixel text-lg text-primary">{BRAND.name}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {BRAND.tagline1} {BRAND.tagline2}
+        </p>
+      </div>
+
       <Header />
 
       <main className="mx-auto w-full max-w-[1440px] px-5 pb-16">
-        <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
         <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_380px]">
           <div className="order-2 lg:order-1">
             <SponsorLadder />
