@@ -3,10 +3,8 @@ import { Volume2, VolumeX } from "lucide-react";
 import { audio } from "@/lib/audio";
 
 function Stat({ label, value, labelFirst }: { label: string; value: string; labelFirst?: boolean }) {
-  const valueEl = <span className="font-mono text-sm font-bold tabular-nums text-foreground">{value}</span>;
-  const labelEl = (
-    <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">{label}</span>
-  );
+  const valueEl = <span className="font-mono text-xs font-bold tabular-nums text-foreground">{value}</span>;
+  const labelEl = <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>;
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap">
       {labelFirst ? (
@@ -47,8 +45,8 @@ export function StatusBar({
   };
 
   return (
-    <div className="mx-auto mb-4 flex max-w-full items-center gap-2 overflow-x-auto">
-      <div className="neon-border flex shrink-0 items-center gap-1.5 rounded px-3 py-2 text-muted-foreground">
+    <div className="mx-auto mb-4 flex max-w-full items-center gap-1.5 overflow-x-auto">
+      <div className="neon-border flex shrink-0 items-center gap-1 rounded px-2.5 py-1.5 text-muted-foreground">
         <Stat label="Playing" value={(playersOnline ?? 0).toLocaleString()} />
         <span aria-hidden>·</span>
         <Stat label="Played today" value={(gamesToday ?? 0).toLocaleString()} />
@@ -60,7 +58,7 @@ export function StatusBar({
         type="button"
         onClick={toggleSound}
         aria-label={soundEnabled ? "Mute sound" : "Unmute sound"}
-        className="neon-border flex h-9 w-9 shrink-0 items-center justify-center rounded"
+        className="neon-border flex h-8 w-8 shrink-0 items-center justify-center rounded"
       >
         {soundEnabled ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
       </button>
