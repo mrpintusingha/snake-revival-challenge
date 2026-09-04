@@ -478,7 +478,7 @@ function Landing() {
     <div className="crt-grid min-h-screen">
       <Header />
 
-      <main className="mx-auto w-full max-w-7xl px-5 pb-16">
+      <main className="mx-auto w-full max-w-[1440px] px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
         <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_380px]">
           <div className="order-2 lg:order-1">

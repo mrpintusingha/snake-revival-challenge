@@ -36,7 +36,7 @@ export function Header() {
 
   return (
     <header className="border-b border-border/60">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-3 px-5 py-4">
         <Link to="/" className="flex items-center gap-2 text-left">
           <img
             src="/favicon.svg"
