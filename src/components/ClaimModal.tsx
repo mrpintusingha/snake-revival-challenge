@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Globe, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { SPONSOR_CATEGORIES, nextWholeDollarAbove } from "@/lib/config";
 import { domainFor, faviconFor } from "@/lib/sponsorDisplay";
 import { looksLikeSponsorLink } from "@/lib/sponsorLink";
 import { useSponsorClaimForm } from "@/hooks/useSponsorClaimForm";
@@ -30,7 +30,7 @@ export function ClaimModal({
   onClose: () => void;
   onClaimed: () => void;
 }) {
-  const floorAmount = target.amount + SPONSOR_MIN_INCREMENT;
+  const floorAmount = nextWholeDollarAbove(target.amount);
   const form = useSponsorClaimForm("all_time", floorAmount, () => {
     onClaimed();
     onClose();

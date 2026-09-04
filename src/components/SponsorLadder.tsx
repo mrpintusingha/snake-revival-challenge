@@ -36,7 +36,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT, nextWholeDollarAbove } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { domainFor, faviconFor, rankBadge, TIER_AVATAR_BORDER, TIER_ROW_CLASS } from "@/lib/sponsorDisplay";
 import { looksLikeSponsorLink } from "@/lib/sponsorLink";
@@ -111,7 +111,7 @@ function SponsorRow({
         onClick={onClaimHere}
         className="absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground uppercase group-hover:block"
       >
-        Claim this rank for ${(s.amount + SPONSOR_MIN_INCREMENT).toLocaleString()}
+        Claim this rank for ${nextWholeDollarAbove(s.amount).toLocaleString()}
       </button>
       <a
         href={s.link_url.startsWith("http") ? s.link_url : `https://${s.link_url}`}
@@ -237,7 +237,7 @@ export function SponsorLadder() {
   // whole ladder, never just the current page's own top row — the server
   // tracks this independently of pagination so it's correct on every page.
   const topAmount = data?.topAmount ?? 0;
-  const floorAmount = topAmount + SPONSOR_MIN_INCREMENT;
+  const floorAmount = nextWholeDollarAbove(topAmount);
   // Podium styling (gold/silver/bronze) only makes sense for absolute ranks
   // 1-3, which only ever appear on page 1.
   const top3 = page === 1 ? standings.slice(0, 3) : [];

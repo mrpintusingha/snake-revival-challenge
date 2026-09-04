@@ -68,6 +68,18 @@ export const SPONSOR_CATEGORIES = [
 /** Minimum amount, in whole dollars, a new claim must exceed the current top by. */
 export const SPONSOR_MIN_INCREMENT = 1;
 
+/**
+ * The smallest whole-dollar amount that legitimately beats a given amount.
+ * Existing amounts aren't always whole dollars — a settled real payment can
+ * land on cents (e.g. $2.36) — but every new claim must be an integer, so
+ * naively adding SPONSOR_MIN_INCREMENT to a fractional amount (2.36 + 1 =
+ * 3.36) produces a floor the server rejects. Flooring first guarantees a
+ * clean integer that's still strictly greater than the amount being beaten.
+ */
+export function nextWholeDollarAbove(amount: number): number {
+  return Math.floor(amount) + SPONSOR_MIN_INCREMENT;
+}
+
 export const GAME_VERSION = "1.0.0";
 
 export const SITE_URL =

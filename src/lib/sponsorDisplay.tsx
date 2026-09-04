@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { nextWholeDollarAbove } from "@/lib/config";
 import { normalizeSponsorLink } from "@/lib/sponsorLink";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +78,7 @@ export function AdvertiserRow({
         onClick={onOpen}
         className="absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground uppercase group-hover:block"
       >
-        Claim this rank for ${(amount + SPONSOR_MIN_INCREMENT).toLocaleString()}
+        Claim this rank for ${nextWholeDollarAbove(amount).toLocaleString()}
       </button>
       <button
         type="button"

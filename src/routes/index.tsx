@@ -15,7 +15,7 @@ import { LiveActivityFeed } from "@/components/LiveActivityFeed";
 import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { BRAND, nextWholeDollarAbove } from "@/lib/config";
 import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
@@ -475,7 +475,7 @@ function Landing() {
   })();
 
   const onRankerClick = (target: ClaimModalTarget) => {
-    track("sponsor_rank_prompt_clicked", { amount: target.amount + SPONSOR_MIN_INCREMENT, rank: target.rank });
+    track("sponsor_rank_prompt_clicked", { amount: nextWholeDollarAbove(target.amount), rank: target.rank });
     setClaimTarget(target);
   };
 
