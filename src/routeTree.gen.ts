@@ -10,9 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as PlayRouteImport } from './routes/play'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RulesRouteImport } from './routes/rules'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ChallengeCodeRouteImport } from './routes/challenge.$code'
 import { Route as PIdRouteImport } from './routes/p.$id'
@@ -21,6 +24,16 @@ import { Route as ApiPublicWebhooksDodoRouteImport } from './routes/api/public/w
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -36,6 +49,11 @@ const PlayRoute = PlayRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RulesRoute = RulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -61,9 +79,12 @@ const ApiPublicWebhooksDodoRoute = ApiPublicWebhooksDodoRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
   '/privacy': typeof PrivacyRoute
+  '/rules': typeof RulesRoute
   '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
@@ -71,9 +92,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
   '/privacy': typeof PrivacyRoute
+  '/rules': typeof RulesRoute
   '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
@@ -82,9 +106,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
   '/leaderboard': typeof LeaderboardRoute
   '/play': typeof PlayRoute
   '/privacy': typeof PrivacyRoute
+  '/rules': typeof RulesRoute
   '/terms': typeof TermsRoute
   '/challenge/$code': typeof ChallengeCodeRoute
   '/p/$id': typeof PIdRoute
@@ -94,9 +121,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/contact'
+    | '/faq'
     | '/leaderboard'
     | '/play'
     | '/privacy'
+    | '/rules'
     | '/terms'
     | '/challenge/$code'
     | '/p/$id'
@@ -104,9 +134,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/contact'
+    | '/faq'
     | '/leaderboard'
     | '/play'
     | '/privacy'
+    | '/rules'
     | '/terms'
     | '/challenge/$code'
     | '/p/$id'
@@ -114,9 +147,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/contact'
+    | '/faq'
     | '/leaderboard'
     | '/play'
     | '/privacy'
+    | '/rules'
     | '/terms'
     | '/challenge/$code'
     | '/p/$id'
@@ -125,9 +161,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
   LeaderboardRoute: typeof LeaderboardRoute
   PlayRoute: typeof PlayRoute
   PrivacyRoute: typeof PrivacyRoute
+  RulesRoute: typeof RulesRoute
   TermsRoute: typeof TermsRoute
   ChallengeCodeRoute: typeof ChallengeCodeRoute
   PIdRoute: typeof PIdRoute
@@ -141,6 +180,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -162,6 +215,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rules': {
+      id: '/rules'
+      path: '/rules'
+      fullPath: '/rules'
+      preLoaderRoute: typeof RulesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -197,9 +257,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
   LeaderboardRoute: LeaderboardRoute,
   PlayRoute: PlayRoute,
   PrivacyRoute: PrivacyRoute,
+  RulesRoute: RulesRoute,
   TermsRoute: TermsRoute,
   ChallengeCodeRoute: ChallengeCodeRoute,
   PIdRoute: PIdRoute,

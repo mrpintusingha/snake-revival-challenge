@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND } from "@/lib/config";
+import { BRAND, OPERATOR } from "@/lib/config";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -39,6 +39,7 @@ function Privacy() {
             <li>Your chosen nickname and optional country.</li>
             <li>A random identifier for your browser, stored only as a one-way hash on our side.</li>
             <li>Your game sessions, scores, achievements and challenge links.</li>
+            <li>A one-way hash marking that your browser has visited, used to count unique visitors — no browsing history, no IP address stored alongside it.</li>
           </ul>
           <h2 className="text-foreground">What we do not collect</h2>
           <p>No home address, no phone number, no email is required to play.</p>
@@ -48,13 +49,22 @@ function Privacy() {
             can improve the experience. We use browser local storage to remember your player identity
             and any pending challenge — this is required for the game to work.
           </p>
-          <h2 className="text-foreground">Sponsors</h2>
+          <h2 className="text-foreground">Sponsor listings</h2>
           <p>
-            Weekly sponsors do not receive any player data. Sponsor payment processing, when it exists,
-            is handled entirely between the sponsor and our payment provider.
+            The Outbid for #1 sponsor board is a separate feature from the game and does not use or share
+            any player data. A sponsor's listing (the URL/@handle, category, tagline, and amount paid) is
+            public by design — that's the point of the listing. Sponsor payments are processed by Dodo
+            Payments; we never see or store full card details, only what's needed to confirm the payment
+            and keep the listing's payment status accurate.
           </p>
           <h2 className="text-foreground">Deleting your data</h2>
-          <p>Ask us and we will remove your profile, scores and challenge links.</p>
+          <p>
+            Email{" "}
+            <a href={`mailto:${OPERATOR.email}`} className="text-primary hover:opacity-80">
+              {OPERATOR.email}
+            </a>{" "}
+            and we will remove your profile, scores and challenge links.
+          </p>
           <p>{BRAND.disclaimer}</p>
         </div>
       </main>

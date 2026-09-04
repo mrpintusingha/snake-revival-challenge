@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Trophy, Users } from "lucide-react";
-import { BRAND } from "@/lib/config";
+import { BRAND, OPERATOR } from "@/lib/config";
 import { getPlayerSecret } from "@/lib/player";
 import { getSponsorTopBid, getVisitorStats, recordVisit } from "@/lib/api.functions";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
@@ -90,25 +90,95 @@ export function Header() {
   );
 }
 
+function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">{title}</h3>
+      <ul className="mt-3 space-y-2 text-xs">{children}</ul>
+    </div>
+  );
+}
+
 export function Footer() {
   return (
-    <footer className="mx-auto mt-4 w-full max-w-3xl border-t border-border/60 px-5 py-8 text-xs leading-relaxed text-muted-foreground">
-      <p>{BRAND.disclaimer}</p>
-      <p className="mt-2">{BRAND.legal}</p>
-      <p className="mt-3 flex flex-wrap gap-4">
-        <Link to="/leaderboard" className="hover:text-foreground">
-          Leaderboard
-        </Link>
-        <Link to="/" className="hover:text-foreground">
-          Play
-        </Link>
-        <Link to="/privacy" className="hover:text-foreground">
-          Privacy
-        </Link>
-        <Link to="/terms" className="hover:text-foreground">
-          Terms
-        </Link>
-      </p>
+    <footer className="mt-10 border-t border-border/60">
+      <div className="mx-auto w-full max-w-[1440px] px-5 py-10">
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+          <div className="col-span-2 sm:col-span-1">
+            <div className="flex items-center gap-2">
+              <img
+                src="/favicon.svg"
+                alt=""
+                aria-hidden
+                className="h-5 w-5 shrink-0"
+                style={{ imageRendering: "pixelated" }}
+              />
+              <span className="pixel text-[11px] text-primary">{BRAND.short}</span>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{BRAND.tagline1}</p>
+          </div>
+
+          <FooterColumn title="Play">
+            <li>
+              <Link to="/" className="text-muted-foreground hover:text-foreground">
+                Play
+              </Link>
+            </li>
+            <li>
+              <Link to="/leaderboard" className="text-muted-foreground hover:text-foreground">
+                Leaderboard
+              </Link>
+            </li>
+          </FooterColumn>
+
+          <FooterColumn title="Advertise">
+            <li>
+              <a href="/#sponsor" className="text-muted-foreground hover:text-foreground">
+                Claim a rank
+              </a>
+            </li>
+            <li>
+              <Link to="/rules" className="text-muted-foreground hover:text-foreground">
+                Rules
+              </Link>
+            </li>
+            <li>
+              <Link to="/faq" className="text-muted-foreground hover:text-foreground">
+                FAQ
+              </Link>
+            </li>
+          </FooterColumn>
+
+          <FooterColumn title="Legal">
+            <li>
+              <Link to="/terms" className="text-muted-foreground hover:text-foreground">
+                Terms
+              </Link>
+            </li>
+            <li>
+              <Link to="/privacy" className="text-muted-foreground hover:text-foreground">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link to="/contact" className="text-muted-foreground hover:text-foreground">
+                Contact
+              </Link>
+            </li>
+          </FooterColumn>
+        </div>
+
+        <div className="mt-8 border-t border-border/60 pt-6 text-xs leading-relaxed text-muted-foreground">
+          <p>{BRAND.disclaimer}</p>
+          <p className="mt-1">{BRAND.legal}</p>
+          <p className="mt-3">
+            Built by {OPERATOR.name} ·{" "}
+            <a href={OPERATOR.twitterUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+              {OPERATOR.twitterHandle}
+            </a>
+          </p>
+        </div>
+      </div>
     </footer>
   );
 }

@@ -71,8 +71,15 @@ export const SPONSOR_MIN_INCREMENT = 1;
 export const GAME_VERSION = "1.0.0";
 
 export const SITE_URL =
-  (typeof window !== "undefined" && window.location.origin) ||
-  "https://90s-snake-challenge.lovable.app";
+  (typeof window !== "undefined" && window.location.origin) || "https://90skids.lol";
+
+/** Who operates this site — used on Contact, Terms, Privacy and the footer. */
+export const OPERATOR = {
+  name: "Pintu Singha",
+  email: "mrpintusingha@gmail.com",
+  twitterHandle: "@itspintusingha",
+  twitterUrl: "https://x.com/itspintusingha",
+} as const;
 
 export const ACHIEVEMENT_TIERS = [
   { min: 10000, name: "90s Final Boss" },
