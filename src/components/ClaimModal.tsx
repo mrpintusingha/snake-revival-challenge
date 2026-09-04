@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Globe, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SPONSOR_CATEGORIES, SPONSOR_MIN_INCREMENT } from "@/lib/config";
@@ -48,7 +49,15 @@ export function ClaimModal({
 
   const holderDomain = domainFor(target.linkUrl);
 
-  return (
+  // Rendered into document.body via a portal rather than in place: this
+  // component mounts wherever the row that opened it lives (e.g. deep
+  // inside SponsorLadder's own animated wrapper), and any ancestor with a
+  // CSS transform — like the page's mount-in "rise" animation — turns
+  // position:fixed into "fixed relative to that ancestor" instead of the
+  // viewport, so the overlay ends up pinned near the clicked row instead of
+  // covering the screen. A portal sidesteps that regardless of where this
+  // component is mounted.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onClose}
@@ -187,6 +196,7 @@ export function ClaimModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
