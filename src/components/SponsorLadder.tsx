@@ -357,7 +357,7 @@ export function SponsorLadder() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="relative">
               {faviconFor(form.linkUrl) && looksLikeSponsorLink(form.linkUrl) ? (
