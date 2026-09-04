@@ -4,12 +4,12 @@ import { audio } from "@/lib/audio";
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-1.5" title={label}>
+    <div className="flex items-center gap-1.5">
       <span className="text-primary" aria-hidden>
         {icon}
       </span>
-      <span className="sr-only">{label}: </span>
       <span className="font-mono text-sm font-bold tabular-nums text-foreground">{value}</span>
+      <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase sm:text-[11px]">{label}</span>
     </div>
   );
 }
@@ -37,10 +37,12 @@ export function StatusBar({
   };
 
   return (
-    <div className="neon-border mx-auto mb-4 flex w-full max-w-[360px] items-center justify-between rounded px-3.5 py-2">
-      <Stat icon={<Users className="h-4 w-4" />} label="Players online" value={(playersOnline ?? 0).toLocaleString()} />
-      <Stat icon={<Gamepad2 className="h-4 w-4" />} label="Games played today" value={(gamesToday ?? 0).toLocaleString()} />
-      <Stat icon={<Star className="h-4 w-4" />} label="Today's high score" value={(topScoreToday ?? 0).toLocaleString()} />
+    <div className="neon-border mx-auto mb-4 flex w-full max-w-[440px] flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded px-3.5 py-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <Stat icon={<Users className="h-4 w-4" />} label="Playing online" value={(playersOnline ?? 0).toLocaleString()} />
+        <Stat icon={<Gamepad2 className="h-4 w-4" />} label="Played today" value={(gamesToday ?? 0).toLocaleString()} />
+        <Stat icon={<Star className="h-4 w-4" />} label="Today's high score" value={(topScoreToday ?? 0).toLocaleString()} />
+      </div>
 
       <button
         type="button"
