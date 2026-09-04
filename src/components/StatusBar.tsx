@@ -60,8 +60,8 @@ export function StatusBar({
   };
 
   return (
-    <div className="mx-auto mb-4 flex w-full max-w-[440px] items-center gap-2">
-      <div className="neon-border flex flex-1 items-center justify-between gap-3 overflow-x-auto rounded px-3.5 py-2">
+    <div className="mx-auto mb-4 flex max-w-full items-center gap-2 overflow-x-auto">
+      <div className="neon-border flex shrink-0 items-center gap-3 rounded px-3.5 py-2">
         <Stat icon={<Users className="h-4 w-4" />} label="Playing" value={(playersOnline ?? 0).toLocaleString()} />
         <Stat icon={<Gamepad2 className="h-4 w-4" />} label="Played today" value={(gamesToday ?? 0).toLocaleString()} />
         <Stat
