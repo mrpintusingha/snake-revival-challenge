@@ -271,7 +271,7 @@ export function SponsorLadder() {
       {/* Claim box */}
       <div className="mt-4 space-y-3 rounded border border-border p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-bold tracking-wide uppercase">Claim #1 for</span>
+          <span className="ml-1 text-sm font-bold tracking-wide uppercase">Claim #1 for</span>
           <div className="flex items-center gap-2">
             <button
               type="button"
