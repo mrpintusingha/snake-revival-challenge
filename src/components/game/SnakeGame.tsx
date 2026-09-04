@@ -20,7 +20,7 @@ type Props = {
 export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort, skipIntro = false }: Props) {
   const [, force] = useState(0);
   const stateRef = useRef<SnakeState>(createState(Date.now()));
-  const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "over" | "awaiting-continue" | "submitting">(
+  const [phase, setPhase] = useState<"startup" | "countdown" | "playing" | "submitting">(
     skipIntro ? "playing" : "startup",
   );
   const [count, setCount] = useState(3);
@@ -107,49 +107,26 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
         finished.current = true;
         cancelAnimationFrame(raf);
         audio.die();
-        setPhase("over");
-        
-        // Wait briefly before allowing the user to press any key
-        setTimeout(() => {
-          setPhase("awaiting-continue");
-        }, 1200);
+        setPhase("submitting");
+        onGameOver({
+          score: s.score,
+          foods: s.foods,
+          durationMs: Math.round(performance.now() - startedAt.current),
+          checkpoint: lastSyncRef.current.token,
+        });
       }
       force((n) => n + 1);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [phase]);
-
-  const triggerGameOverTransition = useCallback(() => {
-    setPhase("submitting");
-    if (phase !== "awaiting-continue") return;
-    audio.uiClick();
-    const s = stateRef.current;
-    onGameOver({
-      score: s.score,
-      foods: s.foods,
-      durationMs: Math.round(performance.now() - startedAt.current),
-      checkpoint: lastSyncRef.current.token,
-    });
   }, [phase, onGameOver]);
 
   const input = useCallback((dir: Dir) => {
-    if (phase === "awaiting-continue") {
-      triggerGameOverTransition();
-      return;
-    }
     if (phase !== "playing") return;
     if (stateRef.current.over) return;
     audio.buttonClick();
     turn(stateRef.current, dir);
-  }, [phase, triggerGameOverTransition]);
-
-  // The phone's OK/select key: only ever meaningful once game-over is
-  // awaiting acknowledgement — must not fire triggerGameOverTransition
-  // unguarded, since that forces phase to "submitting" regardless of phase.
-  const handleSelect = useCallback(() => {
-    if (phase === "awaiting-continue") triggerGameOverTransition();
-  }, [phase, triggerGameOverTransition]);
+  }, [phase]);
 
   // Keyboard
   useEffect(() => {
@@ -168,12 +145,6 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
       D: "right",
     };
     const onKey = (e: KeyboardEvent) => {
-      if (phase === "awaiting-continue") {
-        e.preventDefault();
-        triggerGameOverTransition();
-        return;
-      }
-      
       const dir = keys[e.key];
       if (!dir) return;
       e.preventDefault();
@@ -181,21 +152,15 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
     };
     window.addEventListener("keydown", onKey, { passive: false });
     return () => window.removeEventListener("keydown", onKey);
-  }, [input, phase, triggerGameOverTransition]);
+  }, [input]);
 
   // Swipe
   const touch = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
-    if (phase === "awaiting-continue") {
-      e.preventDefault();
-      triggerGameOverTransition();
-      return;
-    }
     const t = e.touches[0];
     if (t) touch.current = { x: t.clientX, y: t.clientY };
   };
   const onTouchMove = (e: React.TouchEvent) => {
-    if (phase === "awaiting-continue") return;
     e.preventDefault();
     const start = touch.current;
     const t = e.touches[0];
@@ -214,11 +179,7 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
       ? { lines: ["90s SNAKE"] }
       : phase === "countdown"
         ? { lines: [count > 0 ? String(count) : "GO!"] }
-        : phase === "over"
-          ? { lines: ["GAME OVER"] }
-          : phase === "awaiting-continue"
-            ? { lines: ["GAME OVER", "PRESS ANY KEY"] }
-            : null;
+        : null;
 
   return (
     <div
@@ -228,8 +189,6 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
     >
       <NokiaFrame
         onDirection={input}
-        onSelect={handleSelect}
-        onPlay={phase === "awaiting-continue" ? triggerGameOverTransition : undefined}
         onReset={onAbort}
         topContent={
           <div className="flex items-center justify-between text-xs text-muted-foreground px-2">
@@ -246,15 +205,6 @@ export function SnakeGame({ sessionToken, initialCheckpoint, onGameOver, onAbort
         }
       >
         <LcdScreen state={s} overlay={overlay} stretch />
-        {phase === "awaiting-continue" && (
-          <button
-            type="button"
-            onClick={triggerGameOverTransition}
-            className="absolute bottom-[10%] left-1/2 -translate-x-1/2 rounded bg-black px-5 py-2 text-xs font-bold uppercase tracking-wide text-[#9ead86]"
-          >
-            Continue
-          </button>
-        )}
       </NokiaFrame>
 
       <div className="mt-4 text-center pixel text-[10px] text-muted-foreground sm:text-[12px]">
