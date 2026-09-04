@@ -172,7 +172,10 @@ type StandingsPage = {
 };
 
 export function SponsorLadder() {
-  const [ladder, setLadder] = useState<Ladder>("all_time");
+  // Daily ladder support (RPC, views, migrations) already exists server-side
+  // but isn't exposed here yet — with only a handful of sponsors so far, an
+  // All-time/Today split isn't useful. Revisit once volume justifies it.
+  const ladder: Ladder = "all_time";
   const [page, setPage] = useState(1);
   const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
 
@@ -243,13 +246,6 @@ export function SponsorLadder() {
 
   const form = useSponsorClaimForm(ladder, floorAmount, () => void refetch());
 
-  const switchLadder = (next: Ladder) => {
-    if (next === ladder) return;
-    setLadder(next);
-    setPage(1);
-    form.resetAmount();
-  };
-
   const onClickListing = (s: Standing) => {
     void fnClick({ data: { bidId: s.id } });
     track("sponsor_listing_clicked", { bidId: s.id, ladder });
@@ -271,29 +267,6 @@ export function SponsorLadder() {
         <h2 className="pixel text-[11px] text-primary sm:text-sm">OUTBID FOR #1</h2>
       </div>
 
-      {/* All-time / Today toggle */}
-      <div className="mt-3 flex rounded-full border border-border bg-secondary/40 p-1 text-[11px] font-bold tracking-wide uppercase">
-        <button
-          type="button"
-          onClick={() => switchLadder("all_time")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 transition-colors",
-            ladder === "all_time" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Trophy className="h-3.5 w-3.5" aria-hidden /> All-time
-        </button>
-        <button
-          type="button"
-          onClick={() => switchLadder("daily")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 transition-colors",
-            ladder === "daily" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden /> Today
-        </button>
-      </div>
 
       {/* Claim box */}
       <div className="mt-4 space-y-3 rounded border border-border p-4">
@@ -411,8 +384,7 @@ export function SponsorLadder() {
       {/* Top 3 — each row carries its own highlight (gold for #1, tinted green for #2/#3). Only ever present on page 1. */}
       {standings.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-          {ladder === "daily" ? "No one has claimed today yet." : "Be the first sponsor."} Claim #1 for just $
-          {SPONSOR_MIN_INCREMENT}.
+          Be the first sponsor. Claim #1 for just ${SPONSOR_MIN_INCREMENT}.
         </div>
       ) : (
         <>
