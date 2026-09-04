@@ -55,8 +55,16 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
             payment_id?: string;
             status?: string;
             metadata?: Record<string, string>;
+            // total_amount/currency reflect whatever currency the buyer's
+            // checkout was actually charged in (adaptive pricing can
+            // localize this, e.g. INR) — never safe to read as USD cents.
+            // settlement_amount/settlement_currency are Dodo's own
+            // normalization to what the merchant actually receives, and
+            // are what verification below relies on.
             total_amount?: number;
             currency?: string;
+            settlement_amount?: number;
+            settlement_currency?: string;
           };
         };
         const event = JSON.parse(body) as Payload;
@@ -84,20 +92,23 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
 
         if (succeeded) {
           // Never trust the claimed amount blindly — verify what Dodo says
-          // was actually collected (total_amount, in cents) against what
-          // this bid claims to have paid. Without this, a misconfigured
-          // product (e.g. a fixed price instead of Pay What You Want) or a
-          // tampered checkout could activate a rank far above what was
-          // really charged. If they disagree, the bid is activated at
-          // whatever was genuinely paid, never at the higher claimed
-          // amount — consistent with "rank is exactly what you pay."
+          // was actually collected, in USD, against what this bid claims
+          // to have paid. Only settlement_amount/settlement_currency are
+          // safe to compare: they're normalized to the merchant's payout
+          // currency, unlike total_amount/currency which reflect whatever
+          // the buyer's checkout was actually charged in (adaptive pricing
+          // can localize this — comparing that raw figure to a USD claim
+          // is exactly what caused a $2 claim to read as "$231.81" from a
+          // ₹231.81 charge). If USD settlement disagrees with the claim,
+          // activate at what was genuinely received, never higher.
           let activatedAmount = bid.amount;
           const claimedCents = Math.round(bid.amount * 100);
-          const paidCents = event.data?.total_amount;
-          if (typeof paidCents === "number" && paidCents !== claimedCents) {
-            activatedAmount = Math.max(0, paidCents) / 100;
+          const settlementCents = event.data?.settlement_amount;
+          const settlementCurrency = event.data?.settlement_currency;
+          if (settlementCurrency === "USD" && typeof settlementCents === "number" && settlementCents !== claimedCents) {
+            activatedAmount = Math.max(0, settlementCents) / 100;
             console.error(
-              `[dodo webhook] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo reports $${activatedAmount} paid. Activating at the paid amount.`,
+              `[dodo webhook] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement reports $${activatedAmount}. Activating at the settled amount.`,
             );
           }
 

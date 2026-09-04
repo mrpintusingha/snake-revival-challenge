@@ -1319,6 +1319,15 @@ export const claimSponsorRank = createServerFn({ method: "POST" })
         product_cart: [{ product_id: productId, quantity: 1, amount: Math.round(data.amount * 100) }],
         return_url: returnUrl.toString(),
         metadata: { kind: "sponsor_bid", bid_id: bid.id, ladder_type: data.ladderType },
+        // Every amount in this app — the RPC's floor check, the claim
+        // form, the ladder — is a whole US dollar figure. Without locking
+        // this, Dodo's adaptive pricing can localize checkout to the
+        // buyer's local currency: a sponsor intending to pay $2 was
+        // instead charged ₹231.81 (India's adaptive-priced equivalent),
+        // which our own code then nearly mis-recorded as "$231.81" by
+        // reading the local-currency total without checking its currency.
+        billing_currency: "USD",
+        feature_flags: { allow_currency_selection: false },
         // No fabricated name/email — our claim form never collects real
         // contact info, so let Dodo's own hosted checkout ask the sponsor
         // for their actual name/email directly rather than pre-filling
@@ -1381,17 +1390,25 @@ export const getSponsorClaimStatus = createServerFn({ method: "POST" })
           headers: { authorization: `Bearer ${apiKey}` },
         });
         if (res.ok) {
-          const json = (await res.json()) as { status?: string; total_amount?: number };
+          const json = (await res.json()) as {
+            status?: string;
+            // See the webhook handler for why settlement_amount/currency
+            // (normalized to the merchant's USD payout), not total_amount/
+            // currency (whatever currency the buyer's checkout localized
+            // to), is the only safe field to verify a USD claim against.
+            settlement_amount?: number;
+            settlement_currency?: string;
+          };
           const s = (json.status ?? "").toLowerCase();
           if (s === "succeeded" || s === "paid") {
             // Same amount check as the webhook: never activate at more than
-            // what Dodo actually reports collected.
+            // what Dodo actually reports collected, in USD.
             let activatedAmount = bid.amount;
             const claimedCents = Math.round(bid.amount * 100);
-            if (typeof json.total_amount === "number" && json.total_amount !== claimedCents) {
-              activatedAmount = Math.max(0, json.total_amount) / 100;
+            if (json.settlement_currency === "USD" && typeof json.settlement_amount === "number" && json.settlement_amount !== claimedCents) {
+              activatedAmount = Math.max(0, json.settlement_amount) / 100;
               console.error(
-                `[getSponsorClaimStatus] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo reports $${activatedAmount} paid. Activating at the paid amount.`,
+                `[getSponsorClaimStatus] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo settlement reports $${activatedAmount}. Activating at the settled amount.`,
               );
             }
 
