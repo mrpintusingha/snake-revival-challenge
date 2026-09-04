@@ -46,7 +46,7 @@ export function LiveActivityFeed() {
   const activity = ((home?.activity ?? []) as ActivityRow[]).slice(0, 6);
 
   return (
-    <section className="neon-border-gold w-full rounded bg-primary/5 p-4">
+    <section className="neon-border w-full rounded bg-primary/5 p-4">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-primary uppercase">
           <Zap className="h-3.5 w-3.5" aria-hidden /> Live activity

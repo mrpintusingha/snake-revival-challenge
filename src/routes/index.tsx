@@ -481,9 +481,8 @@ function Landing() {
       <main className="mx-auto w-full max-w-7xl px-5 pb-16">
         <h1 className="sr-only">{BRAND.name} — {BRAND.tagline1} {BRAND.tagline2}</h1>
         <div className="rise grid grid-cols-1 gap-8 pt-8 lg:grid-cols-[480px_minmax(0,1fr)_380px]">
-          <div className="order-2 space-y-5 lg:order-1">
+          <div className="order-2 lg:order-1">
             <SponsorLadder />
-            <LiveActivityFeed />
           </div>
 
           <div className="order-1 lg:order-2">
@@ -516,20 +515,9 @@ function Landing() {
               </ol>
             </section>
 
-            <a
-              href="#sponsor"
-              className="mt-6 flex items-center justify-between gap-4 rounded border border-dashed border-border p-4 hover:border-primary"
-            >
-              <span>
-                <span className="block text-xs font-bold tracking-widest text-primary uppercase">Your brand here</span>
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Ad space visible to thousands of players daily. Top position, maximum visibility.
-                </span>
-              </span>
-              <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded border border-dashed border-border text-center text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-                Your logo
-              </span>
-            </a>
+            <div className="mt-6">
+              <LiveActivityFeed />
+            </div>
           </div>
         </div>
       </main>
