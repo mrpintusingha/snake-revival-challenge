@@ -83,6 +83,24 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
         if (bid.payment_status === "succeeded") return new Response("ok (already processed)", { status: 200 });
 
         if (succeeded) {
+          // Never trust the claimed amount blindly — verify what Dodo says
+          // was actually collected (total_amount, in cents) against what
+          // this bid claims to have paid. Without this, a misconfigured
+          // product (e.g. a fixed price instead of Pay What You Want) or a
+          // tampered checkout could activate a rank far above what was
+          // really charged. If they disagree, the bid is activated at
+          // whatever was genuinely paid, never at the higher claimed
+          // amount — consistent with "rank is exactly what you pay."
+          let activatedAmount = bid.amount;
+          const claimedCents = Math.round(bid.amount * 100);
+          const paidCents = event.data?.total_amount;
+          if (typeof paidCents === "number" && paidCents !== claimedCents) {
+            activatedAmount = Math.max(0, paidCents) / 100;
+            console.error(
+              `[dodo webhook] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo reports $${activatedAmount} paid. Activating at the paid amount.`,
+            );
+          }
+
           // .eq("payment_status", "pending") makes this a no-op if a
           // redelivered/concurrent webhook (or the client's own fallback
           // poll) already won the race — .select() tells us whether THIS
@@ -93,6 +111,7 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
             .update({
               payment_status: "succeeded",
               is_active: true,
+              amount: activatedAmount,
               payment_reference: event.data?.payment_id ?? null,
             })
             .eq("id", bid.id)
@@ -102,7 +121,7 @@ export const Route = createFileRoute("/api/public/webhooks/dodo")({
             const { recordSponsorClaimActivity } = await import("@/lib/api.functions");
             await recordSponsorClaimActivity(supabaseAdmin, {
               link_url: bid.link_url,
-              amount: bid.amount,
+              amount: activatedAmount,
               ladder_type: bid.ladder_type,
               slot_date: bid.slot_date,
             });

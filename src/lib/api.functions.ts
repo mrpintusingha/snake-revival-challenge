@@ -1381,28 +1381,39 @@ export const getSponsorClaimStatus = createServerFn({ method: "POST" })
           headers: { authorization: `Bearer ${apiKey}` },
         });
         if (res.ok) {
-          const json = (await res.json()) as { status?: string };
+          const json = (await res.json()) as { status?: string; total_amount?: number };
           const s = (json.status ?? "").toLowerCase();
           if (s === "succeeded" || s === "paid") {
+            // Same amount check as the webhook: never activate at more than
+            // what Dodo actually reports collected.
+            let activatedAmount = bid.amount;
+            const claimedCents = Math.round(bid.amount * 100);
+            if (typeof json.total_amount === "number" && json.total_amount !== claimedCents) {
+              activatedAmount = Math.max(0, json.total_amount) / 100;
+              console.error(
+                `[getSponsorClaimStatus] amount mismatch for bid ${bid.id}: claimed $${bid.amount}, Dodo reports $${activatedAmount} paid. Activating at the paid amount.`,
+              );
+            }
+
             // .eq("payment_status", "pending") makes this a no-op if the
             // webhook already won the race — .select() tells us whether THIS
             // call actually performed the transition, so the activity event
             // fires exactly once regardless of which path confirms first.
             const { data: updated } = await db
               .from("sponsor_bids")
-              .update({ payment_status: "succeeded", is_active: true })
+              .update({ payment_status: "succeeded", is_active: true, amount: activatedAmount })
               .eq("id", bid.id)
               .eq("payment_status", "pending")
               .select("id");
             if (updated && updated.length > 0) {
               await recordSponsorClaimActivity(db, {
                 link_url: bid.link_url,
-                amount: bid.amount,
+                amount: activatedAmount,
                 ladder_type: bid.ladder_type,
                 slot_date: bid.slot_date,
               });
             }
-            return { status: "succeeded" as const, amount: bid.amount, linkUrl: bid.link_url };
+            return { status: "succeeded" as const, amount: activatedAmount, linkUrl: bid.link_url };
           }
           if (s === "failed" || s === "cancelled") {
             await db.from("sponsor_bids").update({ payment_status: "failed" }).eq("id", bid.id).eq("payment_status", "pending");
