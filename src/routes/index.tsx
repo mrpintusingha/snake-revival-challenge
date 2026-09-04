@@ -500,6 +500,10 @@ function Landing() {
 
           <div className="order-1 lg:order-2">
             <StatusBar playersOnline={data?.playingNow} gamesToday={data?.gamesToday} topScoreToday={data?.topScoreToday} />
+            <p className="mt-2 text-center text-[10px] tracking-wide text-muted-foreground">
+              A new 90s classic every week · This week:{" "}
+              <span className="font-bold text-primary">Nokia Snake</span>
+            </p>
             {gameColumn}
           </div>
 
