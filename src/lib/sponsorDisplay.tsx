@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Share2 } from "lucide-react";
 import { nextWholeDollarAbove } from "@/lib/config";
 import { normalizeSponsorLink } from "@/lib/sponsorLink";
 import { cn } from "@/lib/utils";
@@ -61,11 +62,13 @@ export function AdvertiserRow({
   linkUrl,
   amount,
   onOpen,
+  onShare,
 }: {
   rank: number;
   linkUrl: string;
   amount: number;
   onOpen: () => void;
+  onShare?: (() => void) | undefined;
 }) {
   const domain = domainFor(linkUrl);
   const favicon = faviconFor(linkUrl);
@@ -80,6 +83,20 @@ export function AdvertiserRow({
       >
         Claim this rank for ${nextWholeDollarAbove(amount).toLocaleString()}
       </button>
+      {onShare && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onShare();
+          }}
+          aria-label={`Share ${domain}'s rank`}
+          className="absolute top-1/2 -right-1.5 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground hover:border-primary hover:text-primary"
+        >
+          <Share2 className="h-3 w-3" aria-hidden />
+        </button>
+      )}
       <button
         type="button"
         onClick={onOpen}

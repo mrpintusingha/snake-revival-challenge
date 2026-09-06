@@ -44,6 +44,7 @@ import { timeAgo } from "@/lib/time";
 import { getSponsorClaimStatus, getSponsorStandings, recordSponsorClick } from "@/lib/api.functions";
 import { useSponsorClaimForm } from "@/hooks/useSponsorClaimForm";
 import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
+import { ShareCardModal, type ShareCardTarget } from "@/components/ShareCardModal";
 
 type Ladder = "all_time" | "daily";
 
@@ -93,11 +94,13 @@ function SponsorRow({
   s,
   onOpen,
   onClaimHere,
+  onShare,
 }: {
   rank: number;
   s: Standing;
   onOpen: (s: Standing) => void;
   onClaimHere: () => void;
+  onShare: () => void;
 }) {
   const domain = domainFor(s.link_url);
   const favicon = faviconFor(s.link_url);
@@ -112,6 +115,18 @@ function SponsorRow({
         className="absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold text-primary-foreground uppercase group-hover:block"
       >
         Claim this rank for ${nextWholeDollarAbove(s.amount).toLocaleString()}
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onShare();
+        }}
+        aria-label={`Share ${domain}'s rank`}
+        className="absolute right-2 bottom-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground hover:border-primary hover:text-primary"
+      >
+        <Share2 className="h-3.5 w-3.5" aria-hidden />
       </button>
       <a
         href={s.link_url.startsWith("http") ? s.link_url : `https://${s.link_url}`}
@@ -178,6 +193,7 @@ export function SponsorLadder() {
   const ladder: Ladder = "all_time";
   const [page, setPage] = useState(1);
   const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
+  const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
 
   const fnClick = useServerFn(recordSponsorClick);
   const fnClaimStatus = useServerFn(getSponsorClaimStatus);
@@ -257,6 +273,11 @@ export function SponsorLadder() {
   // is always labeled "Claim #1 for" and would show the wrong rank number.
   const claimHereFor = (s: Standing, rank: number) => {
     setClaimTarget({ rank, amount: s.amount, linkUrl: s.link_url });
+  };
+
+  const shareFor = (s: Standing, rank: number) => {
+    track("sponsor_card_share_opened", { bidId: s.id, rank, ladder });
+    setShareTarget({ domain: domainFor(s.link_url), tagline: s.tagline, category: s.category, rank, amount: s.amount });
   };
 
   return (
@@ -392,7 +413,14 @@ export function SponsorLadder() {
             <div className="mt-5 rounded-lg border border-border/30 p-2">
               <ol className="space-y-2">
                 {top3.map((s, i) => (
-                  <SponsorRow key={s.id} rank={i + 1} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, i + 1)} />
+                  <SponsorRow
+                    key={s.id}
+                    rank={i + 1}
+                    s={s}
+                    onOpen={onClickListing}
+                    onClaimHere={() => claimHereFor(s, i + 1)}
+                    onShare={() => shareFor(s, i + 1)}
+                  />
                 ))}
               </ol>
             </div>
@@ -403,7 +431,16 @@ export function SponsorLadder() {
             <ol className={cn("space-y-2", top3.length > 0 ? "mt-3" : "mt-5")}>
               {rest.map((s, i) => {
                 const rank = restRankOffset + i;
-                return <SponsorRow key={s.id} rank={rank} s={s} onOpen={onClickListing} onClaimHere={() => claimHereFor(s, rank)} />;
+                return (
+                  <SponsorRow
+                    key={s.id}
+                    rank={rank}
+                    s={s}
+                    onOpen={onClickListing}
+                    onClaimHere={() => claimHereFor(s, rank)}
+                    onShare={() => shareFor(s, rank)}
+                  />
+                );
               })}
             </ol>
           )}
@@ -440,6 +477,7 @@ export function SponsorLadder() {
     {claimTarget && (
       <ClaimModal target={claimTarget} onClose={() => setClaimTarget(null)} onClaimed={() => void refetch()} />
     )}
+    {shareTarget && <ShareCardModal target={shareTarget} onClose={() => setShareTarget(null)} />}
     </>
   );
 }

@@ -13,6 +13,7 @@ import { ShareRow } from "@/components/ShareRow";
 import { SponsorLadder } from "@/components/SponsorLadder";
 import { LiveActivityFeed } from "@/components/LiveActivityFeed";
 import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
+import { ShareCardModal, type ShareCardTarget } from "@/components/ShareCardModal";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
 import { BRAND, nextWholeDollarAbove } from "@/lib/config";
@@ -21,7 +22,7 @@ import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
 import { challengeUrl } from "@/lib/share";
 import { countryName, flagForCountryName, listCountries } from "@/lib/countries";
-import { AdvertiserRow } from "@/lib/sponsorDisplay";
+import { AdvertiserRow, domainFor } from "@/lib/sponsorDisplay";
 import { cn } from "@/lib/utils";
 import {
   completeChallenge,
@@ -70,6 +71,7 @@ function Landing() {
   const [saveCountry, setSaveCountry] = useState("");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [claimTarget, setClaimTarget] = useState<ClaimModalTarget | null>(null);
+  const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
   const countries = useMemo(() => listCountries(), []);
   const queryClient = useQueryClient();
 
@@ -86,7 +88,7 @@ function Landing() {
   const { data: sponsorsPage } = useQuery({
     queryKey: ["sponsor-standings", "all_time", 1],
     queryFn: () => getSponsorStandings({ data: { ladder: "all_time", page: 1 } }) as Promise<{
-      rows: { id: string; link_url: string; amount: number }[];
+      rows: { id: string; link_url: string; amount: number; category: string; tagline: string }[];
     }>,
     staleTime: 10000,
   });
@@ -525,6 +527,16 @@ function Landing() {
                     linkUrl={s.link_url}
                     amount={s.amount}
                     onOpen={() => onRankerClick({ rank: i + 1, amount: s.amount, linkUrl: s.link_url })}
+                    onShare={() => {
+                      track("sponsor_card_share_opened", { bidId: s.id, rank: i + 1 });
+                      setShareTarget({
+                        domain: domainFor(s.link_url),
+                        tagline: s.tagline,
+                        category: s.category,
+                        rank: i + 1,
+                        amount: s.amount,
+                      });
+                    }}
                   />
                 ))}
                 {!sponsors?.length && (
@@ -558,6 +570,7 @@ function Landing() {
           onClaimed={() => void queryClient.invalidateQueries({ queryKey: ["sponsor-standings"] })}
         />
       )}
+      {shareTarget && <ShareCardModal target={shareTarget} onClose={() => setShareTarget(null)} />}
     </div>
   );
 }
