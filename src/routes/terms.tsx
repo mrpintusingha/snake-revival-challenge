@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, OPERATOR, SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { BRAND, OPERATOR, SITE_URL, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -16,8 +16,10 @@ export const Route = createFileRoute("/terms")({
         content: "A free game experience, plus a paid sponsor board. No cash prizes, no payouts, no betting.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${SITE_URL}/terms` },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/terms` }],
   }),
   component: Terms,
 });

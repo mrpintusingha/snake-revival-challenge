@@ -10,11 +10,12 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/react";
+import { JsonLd } from "@/components/JsonLd";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { initAnalytics, track } from "../lib/analytics";
-import { BRAND } from "../lib/config";
+import { BRAND, OPERATOR, SITE_URL } from "../lib/config";
 
 function NotFoundComponent() {
   return (
@@ -89,11 +90,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "theme-color", content: "#12180f" },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "https://www.90skids.lol/og-image.png" },
+      { property: "og:site_name", content: BRAND.short },
+      { property: "og:image", content: `${SITE_URL}/og-image.png` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: "https://www.90skids.lol/og-image.png" },
+      { name: "twitter:site", content: OPERATOR.twitterHandle },
+      { name: "twitter:image", content: `${SITE_URL}/og-image.png` },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -136,6 +139,27 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: BRAND.short,
+          alternateName: BRAND.name,
+          url: SITE_URL,
+          logo: `${SITE_URL}/favicon.svg`,
+          sameAs: [OPERATOR.twitterUrl],
+          founder: { "@type": "Person", name: OPERATOR.name },
+        }}
+      />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: BRAND.short,
+          alternateName: BRAND.name,
+          url: SITE_URL,
+        }}
+      />
       <Outlet />
       <Toaster />
       <Analytics />

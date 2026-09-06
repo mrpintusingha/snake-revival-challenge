@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Footer } from "@/components/SiteChrome";
-import { BRAND } from "@/lib/config";
+import { BRAND, SITE_URL } from "@/lib/config";
 import { getChallenge, markChallengeOpened } from "@/lib/api.functions";
 import { setPendingChallenge } from "@/lib/player";
 import { track } from "@/lib/analytics";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/challenge/$code")({
     if (!challenge) throw notFound();
     return challenge;
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) {
       return {
         meta: [{ title: "Challenge not found" }, { name: "robots", content: "noindex" }],
@@ -28,8 +28,14 @@ export const Route = createFileRoute("/challenge/$code")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:url", content: `${SITE_URL}/challenge/${params.code}` },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
+        // One-off personalized share links, not landing pages worth ranking —
+        // keep them out of the index so they don't dilute the site with
+        // near-duplicate thin content, but still let crawlers follow the
+        // link back to the homepage.
+        { name: "robots", content: "noindex, follow" },
       ],
     };
   },

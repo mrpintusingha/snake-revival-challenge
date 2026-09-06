@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Mail, MessageCircle } from "lucide-react";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, OPERATOR } from "@/lib/config";
+import { BRAND, OPERATOR, SITE_URL } from "@/lib/config";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -13,8 +13,10 @@ export const Route = createFileRoute("/contact")({
       },
       { property: "og:title", content: `Contact — ${BRAND.name}` },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${SITE_URL}/contact` },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/contact` }],
   }),
   component: Contact,
 });

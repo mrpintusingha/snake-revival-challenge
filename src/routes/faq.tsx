@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, OPERATOR, SPONSOR_MIN_INCREMENT } from "@/lib/config";
+import { JsonLd } from "@/components/JsonLd";
+import { BRAND, OPERATOR, SITE_URL, SPONSOR_MIN_INCREMENT } from "@/lib/config";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
@@ -12,11 +13,67 @@ export const Route = createFileRoute("/faq")({
       },
       { property: "og:title", content: `FAQ — ${BRAND.name}` },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${SITE_URL}/faq` },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/faq` }],
   }),
   component: Faq,
 });
+
+/**
+ * Plain-text mirror of the QA blocks rendered below, for the FAQPage schema.
+ * Kept separate (not generated from the JSX) since the visible answers
+ * contain links and dynamic values — this is the flattened, link-free
+ * version search engines and AI answer tools read directly. Keep in sync
+ * with the <QA> blocks in Faq() below if you change the wording there.
+ */
+const FAQ_SCHEMA_ITEMS = [
+  {
+    q: "What is 90s Kids?",
+    a: "A free, browser-based remake of the classic Nokia-era Snake game, with a real global and country leaderboard. No install, no account required to play — just a nickname.",
+  },
+  {
+    q: "Is it really free?",
+    a: "Yes. Free to play, no cash prizes, no prize pool, no payouts, no betting. Sponsor rankings are paid advertising placements, not a prize competition.",
+  },
+  {
+    q: "How does the leaderboard work?",
+    a: "Your best verified score is tracked all-time and shown on the global, country, and friends boards. Each week also has its own top-3 board that resets. Scores are recomputed server-side.",
+  },
+  {
+    q: "What is Outbid for #1?",
+    a: "A separate, paid sponsor ranking that sits alongside the game — a business or X profile pays to appear on the board, sorted by amount paid. It has nothing to do with your Snake score.",
+  },
+  {
+    q: "How much does it cost to rank on Outbid for #1?",
+    a: `Whole US dollars, $${SPONSOR_MIN_INCREMENT} minimum. To take a specific rank, pay at least $${SPONSOR_MIN_INCREMENT} more than whatever currently holds it.`,
+  },
+  {
+    q: "Do sponsor ranks expire?",
+    a: "No — the board is all-time. What's paid never expires and is never wiped, though a listing can still be outranked as new bids come in.",
+  },
+  {
+    q: "What can I list on Outbid for #1?",
+    a: "A product website or an X handle that you own or are authorized to represent. Illegal, adult, or deceptive content isn't allowed.",
+  },
+  {
+    q: "How do I pay for a sponsor rank?",
+    a: "Checkout runs through Dodo Payments. You choose an amount, pay, and your listing goes live the moment payment confirms — never before.",
+  },
+  {
+    q: "Are sponsor payments refundable?",
+    a: "No. Payments are final once your listing is claimed.",
+  },
+  {
+    q: "Are scores fair — can people cheat?",
+    a: "Every session is validated on our servers: timing, pacing, and the final score are all recomputed independently of what the browser reports. Sessions that look manipulated are flagged and excluded.",
+  },
+  {
+    q: "Who built this?",
+    a: `${OPERATOR.name}, as an independent project.`,
+  },
+] as const;
 
 function QA({ q, children }: { q: string; children: React.ReactNode }) {
   return (
@@ -30,6 +87,17 @@ function QA({ q, children }: { q: string; children: React.ReactNode }) {
 function Faq() {
   return (
     <div className="min-h-screen">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQ_SCHEMA_ITEMS.map(({ q, a }) => ({
+            "@type": "Question",
+            name: q,
+            acceptedAnswer: { "@type": "Answer", text: a },
+          })),
+        }}
+      />
       <Header />
       <main className="mx-auto w-full max-w-2xl px-5 py-8">
         <h1 className="pixel text-[12px] leading-[1.9] text-primary">FAQ</h1>

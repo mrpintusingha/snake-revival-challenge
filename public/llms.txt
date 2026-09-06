@@ -1,0 +1,22 @@
+# 90s Kids (90s Nokia Snake Challenge)
+
+> A free, browser-based remake of the classic Nokia-era Snake game at https://www.90skids.lol — no download, no account required to play, just a nickname. Includes a global and country leaderboard, friend challenge links, and a separate paid sponsor ranking called "Outbid for #1".
+
+## Key facts
+
+- Free to play. No cash prizes, no prize pool, no payouts, no betting.
+- No install and no account needed to play — pick a nickname and go.
+- Scores are validated server-side (timing, pacing, and final score are all recomputed independently of the browser) to keep the leaderboard fair.
+- The leaderboard has an all-time global/country view and a weekly top-3 that resets.
+- "Outbid for #1" is a separate, paid sponsor board next to the game: a business or X profile pays a whole-dollar amount to hold a rank, sorted purely by amount paid. It is advertising, not a prize competition, and has no effect on Snake scores.
+- Built and operated by Pintu Singha (https://x.com/itspintusingha) as an independent project.
+
+## Pages
+
+- [Play the game](https://www.90skids.lol/): the Snake game itself, playable directly on the homepage.
+- [Leaderboard](https://www.90skids.lol/leaderboard): global, country, and weekly top scores.
+- [FAQ](https://www.90skids.lol/faq): common questions about the game and the sponsor board.
+- [Rules — Outbid for #1](https://www.90skids.lol/rules): how the paid sponsor ranking works.
+- [Terms of Service](https://www.90skids.lol/terms)
+- [Privacy Policy](https://www.90skids.lol/privacy)
+- [Contact](https://www.90skids.lol/contact)

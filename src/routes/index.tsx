@@ -16,7 +16,8 @@ import { ClaimModal, type ClaimModalTarget } from "@/components/ClaimModal";
 import { ShareCardModal, type ShareCardTarget } from "@/components/ShareCardModal";
 import { StatusBar } from "@/components/StatusBar";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, nextWholeDollarAbove } from "@/lib/config";
+import { JsonLd } from "@/components/JsonLd";
+import { BRAND, SITE_URL, nextWholeDollarAbove } from "@/lib/config";
 import type { SnakeState } from "@/lib/snake-engine";
 import { track } from "@/lib/analytics";
 import { getPendingChallenge, getPlayerSecret, setStoredProfileId } from "@/lib/player";
@@ -39,14 +40,22 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: `${BRAND.name} — Play Free` },
+      { title: `${BRAND.name} — Play Free Online, No Download` },
       {
         name: "description",
-        content: "The classic mobile Snake experience. Free to play, right now. Weekly leaderboard, friend challenges.",
+        content:
+          "Play the classic Nokia-era Snake game free in your browser — no download, no account. Global and country leaderboards, friend challenges, and a live sponsor board.",
       },
-      { property: "og:title", content: `${BRAND.name} — Play Free` },
-      { property: "og:description", content: "Bring back your childhood memories. Play free, right now." },
+      { property: "og:title", content: `${BRAND.name} — Play Free Online` },
+      {
+        property: "og:description",
+        content: "Bring back your childhood memories. Play free Snake right now, right in your browser.",
+      },
+      { property: "og:url", content: SITE_URL },
+      { name: "twitter:title", content: `${BRAND.name} — Play Free Online` },
+      { name: "twitter:description", content: "Bring back your childhood memories. Play free, right now." },
     ],
+    links: [{ rel: "canonical", href: SITE_URL }],
   }),
   component: Landing,
 });
@@ -483,6 +492,24 @@ function Landing() {
 
   return (
     <div className="crt-grid min-h-screen">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "VideoGame",
+          name: BRAND.name,
+          alternateName: BRAND.short,
+          url: SITE_URL,
+          description:
+            "The classic mobile Snake experience, rebuilt as a global challenge for the 90s generation. Free to play, no install, no account required.",
+          genre: "Arcade",
+          gamePlatform: "Web Browser",
+          applicationCategory: "Game",
+          operatingSystem: "Any",
+          isAccessibleForFree: true,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          publisher: { "@type": "Organization", name: BRAND.short },
+        }}
+      />
       {/* Visible on mobile only — the compact header below already conveys this on
           larger screens, so it becomes screen-reader-only there instead of duplicating it. */}
       <div className="px-5 pt-6 pb-2 text-center sm:sr-only">

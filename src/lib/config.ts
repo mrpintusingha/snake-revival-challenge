@@ -82,8 +82,13 @@ export function nextWholeDollarAbove(amount: number): number {
 
 export const GAME_VERSION = "1.0.0";
 
-export const SITE_URL =
-  (typeof window !== "undefined" && window.location.origin) || "https://90skids.lol";
+/**
+ * The one canonical origin for this site — used for canonical links,
+ * og:url, and structured data. Deliberately fixed (not derived from the
+ * request host) so links stay correct even when served from a legacy alias
+ * like the old vercel.app domain.
+ */
+export const SITE_URL = "https://www.90skids.lol";
 
 /** Who operates this site — used on Contact, Terms, Privacy and the footer. */
 export const OPERATOR = {

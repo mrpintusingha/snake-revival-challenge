@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, tierFor } from "@/lib/config";
+import { BRAND, SITE_URL, tierFor } from "@/lib/config";
 import { getLeaderboard, getWeeklyLeaderboard } from "@/lib/api.functions";
 import { getStoredProfileId } from "@/lib/player";
 
@@ -16,7 +16,9 @@ export const Route = createFileRoute("/leaderboard")({
       },
       { property: "og:title", content: `Leaderboard — ${BRAND.name}` },
       { property: "og:description", content: "Who's still got it? See the top Snake scores." },
+      { property: "og:url", content: `${SITE_URL}/leaderboard` },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/leaderboard` }],
   }),
   component: LeaderboardPage,
 });

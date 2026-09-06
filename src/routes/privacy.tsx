@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND, OPERATOR } from "@/lib/config";
+import { BRAND, OPERATOR, SITE_URL } from "@/lib/config";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -17,8 +17,10 @@ export const Route = createFileRoute("/privacy")({
         content: "We collect only a nickname, an optional country, and your scores.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: `${SITE_URL}/privacy` },
       { name: "twitter:card", content: "summary" },
     ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/privacy` }],
   }),
   component: Privacy,
 });

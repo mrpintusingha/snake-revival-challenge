@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Footer, Header } from "@/components/SiteChrome";
-import { BRAND } from "@/lib/config";
+import { BRAND, SITE_URL } from "@/lib/config";
 import { getProfile } from "@/lib/api.functions";
 
 export const Route = createFileRoute("/p/$id")({
@@ -9,19 +9,22 @@ export const Route = createFileRoute("/p/$id")({
     if (!profile) throw notFound();
     return profile;
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) {
       return { meta: [{ title: "Player not found" }, { name: "robots", content: "noindex" }] };
     }
     const title = `${loaderData.nickname} — ${loaderData.best_score.toLocaleString()} on ${BRAND.short}`;
     const description = `${loaderData.nickname} is global #${loaderData.rankGlobal} on the ${BRAND.name}. Can you beat them?`;
+    const url = `${SITE_URL}/p/${params.id}`;
     return {
       meta: [
         { title },
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:url", content: url },
       ],
+      links: [{ rel: "canonical", href: url }],
     };
   },
   component: ProfilePage,
