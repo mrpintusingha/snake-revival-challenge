@@ -83,49 +83,51 @@ export function AdvertiserRow({
       >
         Claim this rank for ${nextWholeDollarAbove(amount).toLocaleString()}
       </button>
-      {onShare && (
+      <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onShare();
-          }}
-          aria-label={`Share ${domain}'s rank`}
-          className="absolute top-1/2 -right-1.5 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground hover:border-primary hover:text-primary"
+          onClick={onOpen}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2.5 rounded p-2 text-sm transition-colors",
+            TIER_ROW_CLASS[rank] ?? "border border-border/50 hover:border-primary",
+          )}
         >
-          <Share2 className="h-3 w-3" aria-hidden />
+          <span className="flex w-6 shrink-0 justify-center">{rankBadge(rank)}</span>
+          {favicon && !faviconFailed ? (
+            <img
+              src={favicon}
+              alt=""
+              className={cn("h-6 w-6 shrink-0 rounded border object-cover", TIER_AVATAR_BORDER[rank] ?? "border-border")}
+              onError={() => setFaviconFailed(true)}
+            />
+          ) : (
+            <span
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded border bg-secondary text-[10px] font-bold text-primary",
+                TIER_AVATAR_BORDER[rank] ?? "border-border",
+              )}
+            >
+              {domain.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-left font-bold">{domain}</span>
+          <span className="shrink-0 font-mono text-xs font-bold text-primary">${amount.toLocaleString()}</span>
         </button>
-      )}
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          "flex w-full items-center gap-2.5 rounded p-2 text-sm transition-colors",
-          TIER_ROW_CLASS[rank] ?? "border border-border/50 hover:border-primary",
-        )}
-      >
-        <span className="flex w-6 shrink-0 justify-center">{rankBadge(rank)}</span>
-        {favicon && !faviconFailed ? (
-          <img
-            src={favicon}
-            alt=""
-            className={cn("h-6 w-6 shrink-0 rounded border object-cover", TIER_AVATAR_BORDER[rank] ?? "border-border")}
-            onError={() => setFaviconFailed(true)}
-          />
-        ) : (
-          <span
-            className={cn(
-              "flex h-6 w-6 shrink-0 items-center justify-center rounded border bg-secondary text-[10px] font-bold text-primary",
-              TIER_AVATAR_BORDER[rank] ?? "border-border",
-            )}
+        {onShare && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onShare();
+            }}
+            aria-label={`Share ${domain}'s rank`}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border/60 text-muted-foreground hover:border-primary hover:text-primary"
           >
-            {domain.charAt(0).toUpperCase()}
-          </span>
+            <Share2 className="h-3 w-3" aria-hidden />
+          </button>
         )}
-        <span className="min-w-0 flex-1 truncate text-left font-bold">{domain}</span>
-        <span className="shrink-0 font-mono text-xs font-bold text-primary">${amount.toLocaleString()}</span>
-      </button>
+      </div>
     </li>
   );
 }
