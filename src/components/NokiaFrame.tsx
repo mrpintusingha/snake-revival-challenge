@@ -93,7 +93,7 @@ function DPad({
 }) {
   const press = (dir: Dir) => () => onDirection?.(dir);
   return (
-    <div className="relative h-[84px] w-[84px] shrink-0 rounded-[22px] border border-border bg-gradient-to-b from-secondary to-card shadow-[0_4px_10px_-4px_rgba(0,0,0,0.6)]">
+    <div className="relative h-28 w-28 shrink-0 rounded-[22px] border border-border bg-gradient-to-b from-secondary to-card shadow-[0_4px_10px_-4px_rgba(0,0,0,0.6)] sm:h-[84px] sm:w-[84px]">
       <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
         <div />
         <Key label="Up" onPress={press("up")}>
@@ -104,7 +104,7 @@ function DPad({
           <Arrow dir="left" />
         </Key>
         <Key label="Select" onPress={() => onSelect?.()}>
-          <span className="h-[26px] w-[26px] rounded-full border border-primary/50 bg-primary/15" />
+          <span className="h-9 w-9 rounded-full border border-primary/50 bg-primary/15 sm:h-[26px] sm:w-[26px]" />
         </Key>
         <Key label="Right" onPress={press("right")}>
           <Arrow dir="right" />
@@ -131,15 +131,13 @@ function Arrow({ dir }: { dir: Dir }) {
   const rotate = { up: 0, right: 90, down: 180, left: 270 }[dir];
   return (
     <svg
-      width="14"
-      height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="3"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-primary"
+      className="h-[18px] w-[18px] text-primary sm:h-[14px] sm:w-[14px]"
       style={{ transform: `rotate(${rotate}deg)` }}
       aria-hidden
     >
