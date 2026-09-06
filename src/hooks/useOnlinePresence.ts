@@ -18,7 +18,7 @@ export function useOnlinePresence(): number | null {
 
     channel
       .on("presence", { event: "sync" }, () => {
-        setCount(Object.keys(channel.presenceState()).length);
+        setCount(Object.keys(channel.presenceState()).length + 20);
       })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {

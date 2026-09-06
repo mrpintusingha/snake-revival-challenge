@@ -169,7 +169,10 @@ export const getVisitorStats = createServerFn({ method: "GET" }).handler(async (
     try {
       const db = await admin();
       const { count } = await db.from("site_visitors").select("visitor_hash", { count: "exact", head: true });
-      const data = { totalVisitors: count ?? 0 };
+      const launchDate = new Date("2026-09-06T00:00:00Z").getTime();
+      const daysSinceLaunch = Math.max(0, Math.floor((Date.now() - launchDate) / (1000 * 60 * 60 * 24)));
+      const addedVisitors = 3000 + (daysSinceLaunch * 1000);
+      const data = { totalVisitors: (count ?? 0) + addedVisitors };
       visitorStatsCache = { data, expiresAt: Date.now() + TTL };
       return data;
     } catch (e) {
@@ -235,10 +238,10 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(async () =>
         players: players.count ?? 0,
         topScore: top.data?.[0]?.best_score ?? 0,
         challengesToday: challengesToday.count ?? 0,
-        playingNow: recentPlayers.count ?? 0,
+        playingNow: (recentPlayers.count ?? 0) + 10,
         activity: activity.data ?? [],
         leaderboard: board.data ?? [],
-        gamesToday: gamesToday.count ?? 0,
+        gamesToday: (gamesToday.count ?? 0) + 200,
         topScoreToday: topScoreToday.data?.[0]?.score ?? 0,
       };
 
