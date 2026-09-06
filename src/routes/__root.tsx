@@ -89,6 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "You played Snake as a kid. Now prove you still have it. Enter the 90s Snake Challenge, get your score and challenge your friends.",
       },
       { name: "theme-color", content: "#12180f" },
+      { name: "google-site-verification", content: "GKCK3MQRB324hB9m2yHL3R2Lp10l-gEqP1ctrwzCx0k" },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: BRAND.short },
       { property: "og:image", content: `${SITE_URL}/og-image.png` },
