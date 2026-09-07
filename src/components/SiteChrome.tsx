@@ -177,6 +177,21 @@ export function Footer() {
           </FooterColumn>
         </div>
 
+        <div className="mt-8 flex justify-center">
+          <a
+            href="https://www.producthunt.com/products/90s-kids-play-classic-nokia-snake-game?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-90s-kids"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              alt="90s Kids - Relive your childhood. Play Nokia Snake again | Product Hunt"
+              width={250}
+              height={54}
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1242809&theme=light&t=1788793528419"
+            />
+          </a>
+        </div>
+
         <div className="mt-8 border-t border-border/60 pt-6 text-center text-xs leading-relaxed text-muted-foreground">
           <p>
             {BRAND.disclaimer} {BRAND.legal}
